@@ -8,20 +8,34 @@ using Random = UnityEngine.Random;
 public class TestQuadTree : MonoBehaviour
 {
     private QuadTree<TestData> _quadTree;
-    [InspectorName("生成后的四叉树节点个数（仅供查看不能修改）")]
+    /// <summary>
+    /// 生成后的四叉树节点个数（仅供查看不能修改）
+    /// </summary>
     public int NodeCount;
-    [InspectorName("生成图的分辨率")]
+    /// <summary>
+    /// 生成图的分辨率
+    /// </summary>
     public float Resolution = 2;
-    [InspectorName("添加进图的对象大小偏移")]
+    /// <summary>
+    /// 添加进图的对象大小偏移
+    /// </summary>
     public float Offset = 0;
-    [InspectorName("地图大小")]
+    /// <summary>
+    /// 地图大小
+    /// </summary>
     public int MapSize = 100;
-    [InspectorName("对象个数")]
+    /// <summary>
+    /// 对象个数
+    /// </summary>
     public int ObjectCount = 50;
     public bool Debug = true;
-    [InspectorName("圆形对象预制")]
+    /// <summary>
+    /// 圆形对象预制
+    /// </summary>
     public GameObject Sphere;
-    [InspectorName("矩形对象预制")]
+    /// <summary>
+    /// 方形对象预制
+    /// </summary>
     public GameObject Cube;
     private GameObject _endPos;
     private GameObject _startPos;
@@ -36,6 +50,9 @@ public class TestQuadTree : MonoBehaviour
         Case5();
     }
 
+    /// <summary>
+    /// 案例1：添加N个圆形区域
+    /// </summary>
     void Case1()
     {
         _quadTree.Init(new Rect(0, 0, MapSize, MapSize));
@@ -57,6 +74,9 @@ public class TestQuadTree : MonoBehaviour
         _quadTree.FakeClear();
     }
 
+    /// <summary>
+    /// 案例2：添加N个平行于坐标轴的矩形区域
+    /// </summary>
     void Case2()
     {
         _quadTree.Init(new Rect(0, 0, MapSize, MapSize));
@@ -78,6 +98,9 @@ public class TestQuadTree : MonoBehaviour
         _quadTree.FakeClear();
     }
 
+    /// <summary>
+    /// 案例3：添加1个非平行于坐标轴的矩形区域
+    /// </summary>
     void Case3()
     {
         _quadTree.Init(new Rect(0, 0, MapSize, MapSize));
@@ -100,6 +123,9 @@ public class TestQuadTree : MonoBehaviour
         _quadTree.FakeClear();
     }
 
+    /// <summary>
+    /// 案例4：添加N个任意朝向的矩形区域
+    /// </summary>
     void Case4()
     {
         _quadTree.Init(new Rect(0, 0, MapSize, MapSize));
@@ -125,6 +151,10 @@ public class TestQuadTree : MonoBehaviour
         _quadTree.FakeClear();
     }
 
+    /// <summary>
+    /// 案例5：添加N个任意朝向的矩形区域，并开启寻路
+    /// （拖动StartPos或EndPos对象开启寻路）
+    /// </summary>
     void Case5()
     {
         _quadTree.Init(new Rect(0, 0, MapSize, MapSize));
@@ -151,6 +181,49 @@ public class TestQuadTree : MonoBehaviour
         _player = Instantiate(Cube);
         _player.name = "Player";
         if (Debug) _quadTree.Output(100);
+    }
+
+    /// <summary>
+    /// 案例6：添加N个任意朝向的矩形区域，
+    /// 并使用RemoveAllObjectsInRect方法删除其中1/4的对象
+    /// </summary>
+    void Case6()
+    {
+        _quadTree.Init(new Rect(0, 0, MapSize, MapSize));
+        for (int i = 0; i < ObjectCount; i++)
+        {
+            float2 size = new float2(Random.Range(1, 10), Random.Range(1, 10));
+            float2 pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
+            float2 forward = math.normalizesafe(new float2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)));
+            if (math.lengthsq(forward) < 0.1f) forward = new float2(0, 1);
+            _quadTree.AddRectObject(new TestData(), in size, in pos, forward);
+        }
+        _quadTree.RemoveAllObjectsInRect(new float2(0, 0), new float2(MapSize / 2f, MapSize / 2f));
+
+        if (Debug) _quadTree.Output(10);
+        _quadTree.FakeClear();
+    }
+
+    /// <summary>
+    /// 案例7：添加3个任意朝向的矩形区域，并使用RemoveObjectInRect方法删除其中一个对象
+    /// </summary>
+    void Case7()
+    {
+        _quadTree.Init(new Rect(0, 0, MapSize, MapSize));
+        var obj = new TestData();
+        for (int i = 0; i < 3; i++)
+        {
+            obj = new TestData();
+            float2 size = new float2(Random.Range(1, 10), Random.Range(1, 10));
+            float2 pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
+            float2 forward = math.normalizesafe(new float2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)));
+            if (math.lengthsq(forward) < 0.1f) forward = new float2(0, 1);
+            _quadTree.AddRectObject(obj, in size, in pos, forward);
+        }
+        _quadTree.RemoveObjectInRect(obj, new float2(-MapSize / 2f, -MapSize / 2f), new float2(MapSize / 2f, MapSize / 2f));
+
+        if (Debug) _quadTree.Output(10);
+        _quadTree.FakeClear();
     }
 
     private Stack<float2> path;

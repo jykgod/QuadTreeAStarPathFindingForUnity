@@ -23,6 +23,7 @@ namespace JTech.Tools
         public int2 Min;
         public int2 Max;
         public readonly List<T> Objects = new List<T>();
+        //public readonly List<T> RemoveList = new List<T>();
         public readonly HashSet<T> Has = new HashSet<T>();
 
         /// <summary>
@@ -457,6 +458,7 @@ namespace JTech.Tools
 
         /// <summary>
         /// 删除指定对象
+        /// TODO: 应该添加懒操作来降低操作复杂度
         /// </summary>
         /// <param name="now"></param>
         /// <param name="obj"></param>
@@ -492,6 +494,7 @@ namespace JTech.Tools
 
         /// <summary>
         /// 删除指定区域内的指定对象
+        /// TODO: 应该添加懒操作来降低操作复杂度
         /// </summary>
         /// <param name="now"></param>
         /// <param name="obj"></param>
@@ -514,8 +517,8 @@ namespace JTech.Tools
                             now.C[i] = null;
                         }
                     }
+                    return;
                 }
-                return;
             }
             
             //所有区域update操作都需要创建子节点
@@ -628,6 +631,42 @@ namespace JTech.Tools
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 删除指定对象
+        /// </summary>
+        /// <param name="obj"></param>
+        public void RemoveObject(T obj)
+        {
+            if (CheackInited() == false) return;
+            RemoveObject(_head, obj);
+        }
+
+        /// <summary>
+        /// 删除指定区域内的所有对象
+        /// </summary>
+        /// <param name="min"></param>
+        /// <param name="max"></param>
+        public void RemoveObjectInRect(T obj, in float2 min, in float2 max)
+        {
+            if (CheackInited() == false) return;
+            var iMin = (int2)math.round(min * _scale);
+            var iMax = (int2)math.round(max * _scale);
+            RemoveObjectInRect(_head, obj, in iMin, in iMax);
+        }
+
+        /// <summary>
+        /// 删除指定区域内的所有对象
+        /// </summary>
+        /// <param name="min"></param>
+        /// <param name="max"></param>
+        public void RemoveAllObjectsInRect(in float2 min, in float2 max)
+        {
+            if (CheackInited() == false) return;
+            var iMin = (int2)math.round(min * _scale);
+            var iMax = (int2)math.round(max * _scale);
+            RemoveAllObjectsInRect(_head, in iMin, in iMax);
         }
 
         /// <summary>

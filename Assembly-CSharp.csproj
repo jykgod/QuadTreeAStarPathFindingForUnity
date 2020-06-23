@@ -88,17 +88,17 @@
     <Reference Include="Unity.Rider.Editor">
       <HintPath>F:/GameProjects/QuadTreeAStarPathFinding/QuadTreeAStarPathFinding/Library/ScriptAssemblies/Unity.Rider.Editor.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.TextMeshPro">
-      <HintPath>F:/GameProjects/QuadTreeAStarPathFinding/QuadTreeAStarPathFinding/Library/ScriptAssemblies/Unity.TextMeshPro.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEditor.UI">
-      <HintPath>F:/GameProjects/QuadTreeAStarPathFinding/QuadTreeAStarPathFinding/Library/ScriptAssemblies/UnityEditor.UI.dll</HintPath>
-    </Reference>
     <Reference Include="Unity.Mathematics">
       <HintPath>F:/GameProjects/QuadTreeAStarPathFinding/QuadTreeAStarPathFinding/Library/ScriptAssemblies/Unity.Mathematics.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Mathematics.Editor">
       <HintPath>F:/GameProjects/QuadTreeAStarPathFinding/QuadTreeAStarPathFinding/Library/ScriptAssemblies/Unity.Mathematics.Editor.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>F:/GameProjects/QuadTreeAStarPathFinding/QuadTreeAStarPathFinding/Library/ScriptAssemblies/Unity.TextMeshPro.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEditor.UI">
+      <HintPath>F:/GameProjects/QuadTreeAStarPathFinding/QuadTreeAStarPathFinding/Library/ScriptAssemblies/UnityEditor.UI.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.AIModule">
       <HintPath>F:/Program Files/Unity/Hub/Editor/2019.3.4f1/Editor/Data/Managed/UnityEngine/UnityEngine.AIModule.dll</HintPath>
