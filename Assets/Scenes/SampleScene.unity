@@ -363,8 +363,8 @@ MonoBehaviour:
   NodeCount: 0
   Resolution: 1
   Offset: 0
-  MapSize: 400
-  ObjectCount: 100
+  MapSize: 100
+  ObjectCount: 30
   Debug: 1
   Sphere: {fileID: 2827451768349211722, guid: 835bda3e1a2f04846a9f8df507611f43, type: 3}
   Cube: {fileID: 4247723908989820648, guid: 1ce87a7d13f44824a9f8ebcd6b5ff5b8, type: 3}

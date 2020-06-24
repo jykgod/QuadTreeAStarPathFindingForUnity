@@ -685,7 +685,7 @@ namespace JTech.Tools
         }
 
         /// <summary>
-        /// 删除指定区域内的所有对象
+        /// 删除指定区域内的指定对象
         /// </summary>
         /// <param name="min"></param>
         /// <param name="max"></param>
@@ -1009,9 +1009,9 @@ namespace JTech.Tools
         private Stack<float2> _ans = new Stack<float2>();
         private bool[] _visited;
         private bool _visitNewNode;
-        
+
         /// <summary>
-        /// 查找和指定区域有重合部分的所有没有对象存在的节点
+        /// 查找和指定区域有重合部分的所有没有障碍对象存在的节点
         /// </summary>
         /// <param name="min"></param>
         /// <param name="max"></param>
@@ -1138,7 +1138,7 @@ namespace JTech.Tools
                     {
                         var temp = _ans.Pop();
                         Debug.DrawLine(new Vector3(last.x, 3, last.y), new Vector3(temp.x, 3, temp.y), Color.yellow,
-                            0.01f);
+                            1f);
                         last = temp;
                     }
                     _ans = tans;
