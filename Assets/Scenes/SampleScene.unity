@@ -306,6 +306,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1209336907}
   - component: {fileID: 1209336906}
+  - component: {fileID: 1209336908}
   m_Layer: 0
   m_Name: Manager
   m_TagString: Untagged
@@ -320,7 +321,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1209336905}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2236d7d90c5b67d4b93a944b0dea9b8d, type: 3}
   m_Name: 
@@ -347,3 +348,23 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1209336908
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1209336905}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e305dc5c8a18fa749a73e8bc2a4c81e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  NodeCount: 0
+  Resolution: 1
+  Offset: 0
+  MapSize: 400
+  ObjectCount: 100
+  Debug: 1
+  Sphere: {fileID: 2827451768349211722, guid: 835bda3e1a2f04846a9f8df507611f43, type: 3}
+  Cube: {fileID: 4247723908989820648, guid: 1ce87a7d13f44824a9f8ebcd6b5ff5b8, type: 3}

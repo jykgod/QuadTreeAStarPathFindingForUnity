@@ -7,24 +7,19 @@ using UnityEngine.Profiling;
 
 namespace JTech.Tools
 {
-    
-    public interface IData
-    {
-    }
     /// <summary>
     /// 四叉树节点
     /// </summary>
-    public class TreeNode<T> where  T: IData
+    public class SimplifyTreeNode
     {
         public readonly int Id;
-        public readonly TreeNode<T>[] C = new TreeNode<T>[4];
-        public readonly int2[] Min2Bounds = new int2[4];
-        public readonly T[] Min2BoundsEntities = new T[4];
+        public readonly SimplifyTreeNode[] C = new SimplifyTreeNode[4];
+        public readonly int2[] Bounds = new int2[4];
+        public readonly  SimplifyTreeNode[] BoundsNodes = new SimplifyTreeNode[4];
         public int2 Min;
         public int2 Max;
-        public readonly List<T> Objects = new List<T>();
-        //public readonly List<T> RemoveList = new List<T>();
-        public readonly HashSet<T> Has = new HashSet<T>();
+        public bool Flag;
+        public bool Has;
 
         /// <summary>
         /// Astar使用的估值
@@ -39,9 +34,9 @@ namespace JTech.Tools
         /// <summary>
         /// Astar使用的路径上一个区域的id
         /// </summary>
-        public TreeNode<T> LastNode;
+        public SimplifyTreeNode LastNode;
 
-        public TreeNode(int id)
+        public SimplifyTreeNode(int id)
         {
             Id = id;
         }
@@ -50,44 +45,43 @@ namespace JTech.Tools
     /// <summary>
     /// 节点对象池
     /// </summary>
-    public class NodePool<T> where  T : IData
+    public class SimplifyNodePool
     {
-        private readonly Queue<TreeNode<T>> _queue;
+        private readonly Queue<SimplifyTreeNode> _queue;
 
         public int Count { get; private set; } = 0;
 
-        public NodePool(int initCapital)
+        public SimplifyNodePool(int initCapital)
         {
             Count = initCapital;
-            _queue = new Queue<TreeNode<T>>();
+            _queue = new Queue<SimplifyTreeNode>();
             for (int i = 0; i < initCapital; i++)
             {
-                _queue.Enqueue(new TreeNode<T>(i));
+                _queue.Enqueue(new SimplifyTreeNode(i));
             }
         }
 
-        public TreeNode<T> Get(int2 min, int2 max)
+        public SimplifyTreeNode Get(int2 min, int2 max)
         {
-            TreeNode<T> ret;
+            SimplifyTreeNode ret;
             if (_queue.Count > 0)
             {
                 ret = _queue.Dequeue();
             }
             else
             {
-                ret = new TreeNode<T>(Count++);
+                ret = new SimplifyTreeNode(Count++);
             }
 
             ret.Min = min;
             ret.Max = max;
-            ret.Min2Bounds[0] = ret.Min2Bounds[1] = ret.Min2Bounds[2] = ret.Min2Bounds[3] = new int2(int.MaxValue, int.MaxValue);
-            ret.Objects.Clear();
-            ret.Has.Clear();
+            ret.Bounds[0] = ret.Bounds[1] = ret.Bounds[2] = ret.Bounds[3] = new int2(int.MaxValue, int.MaxValue);
             ret.C[0] = ret.C[1] = ret.C[2] = ret.C[3] = null;
+            ret.Has = ret.Flag = false;
             return ret;
         }
 
-        public void Collect(TreeNode<T> node)
+        public void Collect(SimplifyTreeNode node)
         {
             _queue.Enqueue(node);
         }
@@ -96,24 +90,24 @@ namespace JTech.Tools
     /// <summary>
     /// 四叉树
     /// </summary>
-    public class QuadTree<T> where  T : IData
+    public class SimplifyQuadTree
     {
         private float _scale = 2;
         private float _offset = 0;
-        private readonly NodePool<T> _pool;
+        private readonly SimplifyNodePool _pool;
         private readonly int2[] _delta = new int2[] {new int2(1, 1), new int2(-1, 1), new int2(1, -1), new int2(-1, -1)};
-        private TreeNode<T> _head;
+        private SimplifyTreeNode _head;
 
         public int Count
         {
             get { return _pool.Count; }
         }
 
-        public QuadTree(float offset = 0, float resolution = 2, int initCapital = 1)
+        public SimplifyQuadTree(float offset = 0, float resolution = 2, int initCapital = 1)
         {
             _offset = offset;
             _scale = resolution;
-            _pool = new NodePool<T>(initCapital);
+            _pool = new SimplifyNodePool(initCapital);
         }
         /// <summary>
         /// 初始化
@@ -132,7 +126,7 @@ namespace JTech.Tools
         /// </summary>
         /// <param name="now"></param>
         /// <param name="index"></param>
-        private void CreateChildren(TreeNode<T> now, int index)
+        private void CreateChildren(SimplifyTreeNode now, int index)
         {
             switch (index)
             {
@@ -156,68 +150,47 @@ namespace JTech.Tools
         /// 懒操作向下维护
         /// </summary>
         /// <param name="now"></param>
-        private void DownTree(TreeNode<T> now)
+        private void DownTree(SimplifyTreeNode now)
         {
-            if (now.Objects.Count == 0) return;
+            if (now.Flag == false) return;
             for (int i = 0; i < 4; i++)
             {
                 if (now.C[i] != null)
                 {
-                    now.C[i].Min2Bounds[0] = now.C[i].Min;
-                    now.C[i].Min2Bounds[1] = new int2(now.C[i].Max.x, now.C[i].Min.y);
-                    now.C[i].Min2Bounds[2] = new int2(now.C[i].Min.x, now.C[i].Max.y);
-                    now.C[i].Min2Bounds[3] = now.C[i].Max;
-                    now.C[i].Objects.AddRange(now.Objects);
-                    for (int j = 0; j < now.Objects.Count; j++)
-                    {
-                        now.C[i].Has.Add(now.Objects[j]);
-                    }
+                    now.C[i].Bounds[0] = now.C[i].Min;
+                    now.C[i].Bounds[1] = new int2(now.C[i].Max.x, now.C[i].Min.y);
+                    now.C[i].Bounds[2] = new int2(now.C[i].Min.x, now.C[i].Max.y);
+                    now.C[i].Bounds[3] = now.C[i].Max;
+                    now.C[i].Flag = true;
                 }
             }
 
-            now.Objects.Clear();
+            now.Flag = false;
         }
 
-        private void UpTree(TreeNode<T> now)
+        private void UpTree(SimplifyTreeNode now)
         {
+            if (now.Has == false) return;
             for (int i = 0; i < 4; i++)
             {
-                if (now.C[i] != null)
+                if (now.C[i] != null && now.C[i].Flag == false)
                 {
-                    if (now.C[i].Has.Count != now.C[i].Objects.Count) return;
-                    for (int j = i + 1; j < 4; j++)
-                    {
-                        if (now.C[j] != null)
-                        {
-                            if (now.C[j].Has.Count != now.C[j].Objects.Count ||
-                                now.C[j].Objects.Count != now.C[i].Objects.Count) return;
-                            for (int k = 0; k < now.C[j].Objects.Count; k++)
-                            {
-                                if (now.C[i].Objects[k].Equals(now.C[i].Objects[k]) == false) return;
-                            }
-                        }
-                    }
+                    return;
                 }
             }
 
-            now.Objects.Clear();
+            now.Flag = true;
             for (int i = 0; i < 4; i++)
             {
                 if (now.C[i] != null)
                 {
-                    if (now.Objects.Count == 0)
-                    {
-                        now.Objects.AddRange(now.C[i].Objects);
-                    }
-
                     _pool.Collect(now.C[i]);
                     now.C[i] = null;
                 }
             }
-            
         }
 
-        private void CreateChildren(TreeNode<T> now)
+        private void CreateChildren(SimplifyTreeNode now)
         {
             for (int i = 0; i < 4; i++)
             {
@@ -240,18 +213,18 @@ namespace JTech.Tools
         /// <param name="entity"></param>
         /// <param name="min"></param>
         /// <param name="max"></param>
-        private void UpdateRect(TreeNode<T> now, T entity, in int2 min, in int2 max)
+        private void UpdateRect(SimplifyTreeNode now, in int2 min, in int2 max)
         {
+            if (now.Flag == true) return;
             if (min.x <= now.Min.x && min.y <= now.Min.y && max.x >= now.Max.x && max.y >= now.Max.y)
             {
-                now.Min2Bounds[0] = now.Min;
-                now.Min2Bounds[1] = new int2(now.Max.x, now.Min.y);
-                now.Min2Bounds[2] = new int2(now.Min.x, now.Max.y);
-                now.Min2Bounds[3] = now.Max;
-                now.Min2BoundsEntities[0] = now.Min2BoundsEntities[1] =
-                    now.Min2BoundsEntities[2] = now.Min2BoundsEntities[3] = entity;
-                now.Objects.Add(entity);
-                now.Has.Add(entity);
+                now.Bounds[0] = now.Min;
+                now.Bounds[1] = new int2(now.Max.x, now.Min.y);
+                now.Bounds[2] = new int2(now.Min.x, now.Max.y);
+                now.Bounds[3] = now.Max;
+                now.BoundsNodes[0] = now.BoundsNodes[1] =
+                    now.BoundsNodes[2] = now.BoundsNodes[3] = now;
+                now.Has = now.Flag = true;
                 return;
             }
 
@@ -260,76 +233,69 @@ namespace JTech.Tools
             DownTree(now);
 
             int2 center = now.Min + (now.Max - now.Min) / 2;
-            bool has = false;
             if (min.x <= center.x && min.y <= center.y)
             {
-                UpdateRect(now.C[0], entity, in min, in max);
+                UpdateRect(now.C[0], in min, in max);
                 for (int i = 0; i < 4; i++)
                 {
-                    if (now.Min2Bounds[i].x == int.MaxValue ||
-                        math.dot(now.Min2Bounds[i] - now.C[0].Min2Bounds[i], _delta[i]) > 0)
+                    if (now.Bounds[i].x == int.MaxValue ||
+                        math.dot(now.Bounds[i] - now.C[0].Bounds[i], _delta[i]) > 0)
                     {
-                        now.Min2Bounds[i] = now.C[0].Min2Bounds[i];
-                        now.Min2BoundsEntities[i] = entity;
+                        now.Bounds[i] = now.C[0].Bounds[i];
+                        now.BoundsNodes[i] = now.C[0].BoundsNodes[i];
                     }
                 }
 
-                has = true;
+                now.Has = true;
             }
 
             if (now.C[1] != null && max.x > center.x && min.y <= center.y)
             {
-                UpdateRect(now.C[1], entity, in min, in max);
+                UpdateRect(now.C[1], in min, in max);
                 for (int i = 0; i < 4; i++)
                 {
-                    if (now.Min2Bounds[i].x == int.MaxValue ||
-                        math.dot(now.Min2Bounds[i] - now.C[1].Min2Bounds[i], _delta[i]) > 0)
+                    if (now.Bounds[i].x == int.MaxValue ||
+                        math.dot(now.Bounds[i] - now.C[1].Bounds[i], _delta[i]) > 0)
                     {
-                        now.Min2Bounds[i] = now.C[1].Min2Bounds[i];
-                        now.Min2BoundsEntities[i] = entity;
+                        now.Bounds[i] = now.C[1].Bounds[i];
+                        now.BoundsNodes[i] = now.C[1].BoundsNodes[i];
                     }
                 }
 
-                has = true;
+                now.Has = true;
             }
 
             if (now.C[2] != null && min.x <= center.x && max.y > center.y)
             {
-                UpdateRect(now.C[2], entity, in min, in max);
+                UpdateRect(now.C[2], in min, in max);
                 for (int i = 0; i < 4; i++)
                 {
-                    if (now.Min2Bounds[i].x == int.MaxValue ||
-                        math.dot(now.Min2Bounds[i] - now.C[2].Min2Bounds[i], _delta[i]) > 0)
+                    if (now.Bounds[i].x == int.MaxValue ||
+                        math.dot(now.Bounds[i] - now.C[2].Bounds[i], _delta[i]) > 0)
                     {
-                        now.Min2Bounds[i] = now.C[2].Min2Bounds[i];
-                        now.Min2BoundsEntities[i] = entity;
+                        now.Bounds[i] = now.C[2].Bounds[i];
+                        now.BoundsNodes[i] = now.C[2].BoundsNodes[i];
                     }
                 }
 
-                has = true;
+                now.Has = true;
             }
 
             if (now.C[3] != null && max.x > center.x && max.y > center.y)
             {
-                UpdateRect(now.C[3], entity, in min, in max);
+                UpdateRect(now.C[3], in min, in max);
                 for (int i = 0; i < 4; i++)
                 {
-                    if (now.Min2Bounds[i].x == int.MaxValue ||
-                        math.dot(now.Min2Bounds[i] - now.C[3].Min2Bounds[i], _delta[i]) > 0)
+                    if (now.Bounds[i].x == int.MaxValue ||
+                        math.dot(now.Bounds[i] - now.C[3].Bounds[i], _delta[i]) > 0)
                     {
-                        now.Min2Bounds[i] = now.C[3].Min2Bounds[i];
-                        now.Min2BoundsEntities[i] = entity;
+                        now.Bounds[i] = now.C[3].Bounds[i];
+                        now.BoundsNodes[i] = now.C[3].BoundsNodes[i];
                     }
                 }
 
-                has = true;
+                now.Has = true;
             }
-
-            if (has)
-            {
-                now.Has.Add(entity);
-            }
-
             UpTree(now);
         }
 
@@ -340,13 +306,13 @@ namespace JTech.Tools
         /// <param name="pos"></param>
         /// <param name="obj"></param>
         /// <returns></returns>
-        private int FindNearObject(TreeNode<T> now, in int2 pos, out T obj)
+        private int FindNearObject(SimplifyTreeNode now, in int2 pos, out SimplifyTreeNode obj)
         {
             obj = default;
-            if (now.Has.Count == 0) return int.MaxValue;
-            if (now.Objects.Count > 0)
+            if (now.Has == false) return int.MaxValue;
+            if (now.Flag)
             {
-                obj = now.Objects[0];
+                obj = now;
                 var d = 0;
                 if (pos.x < now.Min.x) d += now.Min.x - pos.x;
                 else if (pos.x > now.Max.x) d += pos.x - now.Max.x;
@@ -355,7 +321,7 @@ namespace JTech.Tools
                 return d;
             }
             var dist = int.MaxValue;
-            var tEntity = default(T);
+            SimplifyTreeNode tEntity;
             if (pos.x <= now.Max.x && pos.x >= now.Min.x && pos.y <= now.Max.y && pos.y >= now.Min.y)
             {
                 for (int i = 0; i < 4; i++)
@@ -375,26 +341,26 @@ namespace JTech.Tools
             {
                 if (pos.x < now.Min.x && pos.y < now.Min.y)
                 {
-                    obj = now.Min2BoundsEntities[0];
-                    return math.dot(now.Min2Bounds[0] - pos, _delta[0]);
+                    obj = now.BoundsNodes[0];
+                    return math.dot(now.Bounds[0] - pos, _delta[0]);
                 }
 
                 if (pos.x > now.Max.x && pos.y < now.Min.y)
                 {
-                    obj = now.Min2BoundsEntities[1];
-                    return math.dot(now.Min2Bounds[1] - pos, _delta[1]);
+                    obj = now.BoundsNodes[1];
+                    return math.dot(now.Bounds[1] - pos, _delta[1]);
                 }
 
                 if (pos.x < now.Min.x && pos.y > now.Max.y)
                 {
-                    obj = now.Min2BoundsEntities[2];
-                    return math.dot(now.Min2Bounds[2] - pos, _delta[2]);
+                    obj = now.BoundsNodes[2];
+                    return math.dot(now.Bounds[2] - pos, _delta[2]);
                 }
 
                 if (pos.x > now.Max.x && pos.y > now.Max.y)
                 {
-                    obj = now.Min2BoundsEntities[3];
-                    return math.dot(now.Min2Bounds[3] - pos, _delta[3]);
+                    obj = now.BoundsNodes[3];
+                    return math.dot(now.Bounds[3] - pos, _delta[3]);
                 }
 
                 //下面不是最优策略
@@ -460,15 +426,15 @@ namespace JTech.Tools
         /// <param name="max"></param>
         /// <param name="nodes"></param>
         /// <param name="visited"></param>
-        private void FindNodesWithoutObjects(TreeNode<T> now, in int2 min, in int2 max, List<TreeNode<T>> nodes)
+        private void FindNodesWithoutObjects(SimplifyTreeNode now, in int2 min, in int2 max, List<SimplifyTreeNode> nodes)
         {
             if (_visitNewNode && _visited[now.Id]) return;
-            if (now.Objects.Count > 0)
+            if (now.Flag)
             {
                 return;
             }
 
-            if (now.Has.Count == 0)
+            if (now.Has == false)
             {
                 nodes.Add(now);
                 return;
@@ -498,128 +464,16 @@ namespace JTech.Tools
         }
 
         /// <summary>
-        /// 删除指定对象
-        /// TODO: 应该添加懒操作来降低操作复杂度
-        /// </summary>
-        /// <param name="now"></param>
-        /// <param name="obj"></param>
-        /// <returns></returns>
-        private void RemoveObject(TreeNode<T> now, T obj)
-        {
-            if (now.Has.Contains(obj) == false) return;
-            now.Has.Remove(obj);
-            now.Objects.Remove(obj);
-            //TODO:这段仅节省内存和加快a星速度,可以加上对对象池里面的对象个数判断来决定要不要回收节点
-            if (now.Has.Count == 0)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    if (now.C[i] != null)
-                    {
-                        FakeClear(now.C[i]);
-                    }
-                }
-
-                return;
-            }
-            if (now.Objects.Count > 0) CreateChildren(now);
-            DownTree(now);
-            for (int i = 0; i < 4; i++)
-            {
-                if (now.C[i] != null)
-                {
-                    RemoveObject(now.C[i], obj);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 删除指定区域内的指定对象
-        /// TODO: 应该添加懒操作来降低操作复杂度
-        /// </summary>
-        /// <param name="now"></param>
-        /// <param name="obj"></param>
-        /// <param name="min"></param>
-        /// <param name="max"></param>
-        private void RemoveObjectInRect(TreeNode<T> now, T obj, in int2 min, in int2 max)
-        {
-            if (now.Has.Contains(obj) == false) return;
-            if (min.x <= now.Min.x && min.y <= now.Min.y && max.x >= now.Max.x && max.y >= now.Max.y)
-            {
-                now.Has.Remove(obj);
-                now.Objects.Remove(obj);
-                if (now.Has.Count == 0)
-                {
-                    for (int i = 0; i < 4; i++)
-                    {
-                        if (now.C[i] != null)
-                        {
-                            FakeClear(now.C[i]);
-                            now.C[i] = null;
-                        }
-                    }
-                    return;
-                }
-            }
-            
-            //所有区域update操作都需要创建子节点
-            if (now.Objects.Count > 0) CreateChildren(now);
-
-            DownTree(now);
-
-            int2 center = now.Min + (now.Max - now.Min) / 2;
-            if (now.C[0] != null && min.x <= center.x && min.y <= center.y)
-            {
-                RemoveObjectInRect(now.C[0], obj, in min, in max);
-            }
-
-            if (now.C[1] != null && max.x > center.x && min.y <= center.y)
-            {
-                RemoveObjectInRect(now.C[1], obj, in min, in max);
-            }
-
-            if (now.C[2] != null && min.x <= center.x && max.y > center.y)
-            {
-                RemoveObjectInRect(now.C[2], obj, in min, in max);
-            }
-
-            if (now.C[3] != null && max.x > center.x && max.y > center.y)
-            {
-                RemoveObjectInRect(now.C[3], obj, in min, in max);
-            }
-
-            for (int i = 0; i < 4; i++)
-            {
-                if (now.C[i] != null && now.C[i].Has.Contains(obj)) return;
-            }
-
-            now.Has.Remove(obj);
-            //TODO:这段仅节省内存和加快a星速度,可以加上对对象池里面的对象个数判断来决定要不要回收节点
-            if (now.Has.Count == 0)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    if (now.C[i] != null)
-                    {
-                        _pool.Collect(now.C[i]);
-                        now.C[i] = null;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// 删除指定区域内的所有对象
         /// </summary>
         /// <param name="now"></param>
         /// <param name="min"></param>
         /// <param name="max"></param>
-        private void RemoveAllObjectsInRect(TreeNode<T> now, in int2 min, in int2 max)
+        private void RemoveAllObjectsInRect(SimplifyTreeNode now, in int2 min, in int2 max)
         {
             if (min.x <= now.Min.x && min.y <= now.Min.y && max.x >= now.Max.x && max.y >= now.Max.y)
             {
-                now.Has.Clear();
-                now.Objects.Clear();
+                now.Has = now.Flag = false;
                 for (int i = 0; i < 4; i++)
                 {
                     if (now.C[i] != null)
@@ -631,7 +485,7 @@ namespace JTech.Tools
                 return;
             }
 
-            if (now.Objects.Count > 0) CreateChildren(now);
+            if (now.Flag) CreateChildren(now);
 
             DownTree(now);
             int2 center = now.Min + (now.Max - now.Min) / 2;
@@ -655,13 +509,13 @@ namespace JTech.Tools
                 RemoveAllObjectsInRect(now.C[3], in min, in max);
             }
 
-            now.Has.Clear();
+            now.Has = false;
             for (int i = 0; i < 4; i++)
             {
-                if (now.C[i] != null) now.Has.UnionWith(now.C[i].Has);
+                if (now.C[i] != null) now.Has = now.Has || now.C[i].Has;
             }
 
-            if (now.Has.Count == 0)
+            if (now.Has == false)
             {
                 for (int i = 0; i < 4; i++)
                 {
@@ -672,29 +526,6 @@ namespace JTech.Tools
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// 删除指定对象
-        /// </summary>
-        /// <param name="obj"></param>
-        public void RemoveObject(T obj)
-        {
-            if (CheackInited() == false) return;
-            RemoveObject(_head, obj);
-        }
-
-        /// <summary>
-        /// 删除指定区域内的所有对象
-        /// </summary>
-        /// <param name="min"></param>
-        /// <param name="max"></param>
-        public void RemoveObjectInRect(T obj, in float2 min, in float2 max)
-        {
-            if (CheackInited() == false) return;
-            var iMin = (int2)math.round(min * _scale);
-            var iMax = (int2)math.round(max * _scale);
-            RemoveObjectInRect(_head, obj, in iMin, in iMax);
         }
 
         /// <summary>
@@ -716,10 +547,10 @@ namespace JTech.Tools
         /// <param name="obj"></param>
         /// <param name="min"></param>
         /// <param name="max"></param>
-        private void AddRect(T obj, in int2 min, in int2 max)
+        private void AddRect(in int2 min, in int2 max)
         {
             if (_head.Max.x < min.x || _head.Min.x > max.x || _head.Max.y < min.y || _head.Min.y > max.y) return;
-            UpdateRect(_head, obj, in min, in max);
+            UpdateRect(_head, in min, in max);
         }
 
         /// <summary>
@@ -744,7 +575,7 @@ namespace JTech.Tools
         /// <param name="size"></param>
         /// <param name="pos"></param>
         /// <param name="forward"></param>
-        public void AddCircleObject(T obj, in float radius, in float2 pos)
+        public void AddCircleObject(in float radius, in float2 pos)
         {
             if (CheackInited() == false) return;
             const float f1 = 2 - math.SQRT2;
@@ -754,30 +585,30 @@ namespace JTech.Tools
                 int2 min = new int2((int) (pos.x * _scale - r), (int) (pos.y * _scale - r));
                 int2 max = new int2((int) math.ceil(pos.x * _scale + r),
                     (int) math.ceil(pos.y * _scale + r));
-                AddRect(obj, min, max);
+                AddRect(min, max);
             }
             else if(f1 * r < 4)
             {
                 int2 min = new int2((int) (pos.x * _scale - r * math.SQRT2 * 0.5f), (int) (pos.y * _scale - r * math.SQRT2 * 0.5f));
                 int2 max = new int2((int) math.ceil(pos.x * _scale + r * math.SQRT2 * 0.5f),
                     (int) math.ceil(pos.y * _scale + r * math.SQRT2 * 0.5f));
-                AddRect(obj, min, max);
+                AddRect(min, max);
             
                 int2 tmin = new int2((int) (pos.x * _scale - r), min.y);
                 int2 tmax = new int2(min.x, max.y);
-                AddRect(obj, tmin, tmax);
+                AddRect(tmin, tmax);
                 
                 tmin = new int2(min.x, max.y);
                 tmax = new int2(max.x, (int)math.ceil( pos.y * _scale + r));
-                AddRect(obj, tmin, tmax);
+                AddRect(tmin, tmax);
                 
                 tmin = new int2(max.x, min.y);
                 tmax = new int2((int)math.ceil( pos.x * _scale + r), max.y);
-                AddRect(obj, tmin, tmax);
+                AddRect(tmin, tmax);
                 
                 tmin = new int2(min.x, (int) (pos.y * _scale - r));
                 tmax = new int2(min.x, max.y);
-                AddRect(obj, tmin, tmax);
+                AddRect(tmin, tmax);
             }
             else
             {
@@ -785,23 +616,23 @@ namespace JTech.Tools
                 int2 min = new int2((int) (pos.x * _scale - r * math.SQRT2 * 0.5f), (int) (pos.y * _scale - r * math.SQRT2 * 0.5f));
                 int2 max = new int2((int) math.ceil(pos.x * _scale + r * math.SQRT2 * 0.5f),
                     (int) math.ceil(pos.y * _scale + r * math.SQRT2 * 0.5f));
-                AddRect(obj, min, max);
+                AddRect(min, max);
             
                 int2 tmin = new int2((int) (pos.x * _scale - r), min.y);
                 int2 tmax = new int2(min.x, max.y);
-                AddRect(obj, tmin, tmax);
+                AddRect(tmin, tmax);
                 
                 tmin = new int2(min.x, max.y);
                 tmax = new int2(max.x, (int)math.ceil( pos.y * _scale + r));
-                AddRect(obj, tmin, tmax);
+                AddRect(tmin, tmax);
                 
                 tmin = new int2(max.x, min.y);
                 tmax = new int2((int)math.ceil( pos.x * _scale + r), max.y);
-                AddRect(obj, tmin, tmax);
+                AddRect(tmin, tmax);
                 
                 tmin = new int2(min.x, (int) (pos.y * _scale - r));
                 tmax = new int2(min.x, max.y);
-                AddRect(obj, tmin, tmax);
+                AddRect(tmin, tmax);
             }
         }
         
@@ -815,7 +646,7 @@ namespace JTech.Tools
         /// <param name="halfSize"></param>
         /// <param name="pos"></param>
         /// <param name="forward"></param>
-        public void AddParallelRectObject(T obj, in float2 halfSize, in float2 pos)
+        public void AddParallelRectObject(in float2 halfSize, in float2 pos)
         {
             if (CheackInited() == false) return;
             int2 min = new int2((int) (pos.x * _scale - (halfSize.x + _offset) * _scale), (int) (pos.y * _scale - (halfSize.y + _offset) * _scale));
@@ -823,7 +654,7 @@ namespace JTech.Tools
                 (int) math.ceil(pos.y * _scale + (halfSize.y + _offset) * _scale));
             min = math.clamp(min, _head.Min, _head.Max);
             max = math.clamp(max, _head.Min, _head.Max);
-            AddRect(obj, min, max);
+            AddRect(min, max);
         }
 
         private BinaryHeap<int2> _rectClipHeap = new BinaryHeap<int2>((a, b) => a.x < b.x || (a.x == b.x && a.y < b.y));
@@ -836,7 +667,7 @@ namespace JTech.Tools
         /// <param name="halfSize"></param>
         /// <param name="pos"></param>
         /// <param name="forward">xz平面下对象本地z轴的世界朝向</param>
-        public void  AddRectObject(T obj, in float2 halfSize, in float2 pos, in float2 forward)
+        public void  AddRectObject(in float2 halfSize, in float2 pos, in float2 forward)
         {
             if (CheackInited() == false) return;
             _rectClipHeap.Clear();
@@ -862,7 +693,7 @@ namespace JTech.Tools
                 var d = t - s;
                 if (d.x == 0 && d.y == 0)
                 {
-                    AddRect(obj, s, s);
+                    AddRect(s, s);
                     continue;
                 }
 
@@ -973,7 +804,7 @@ namespace JTech.Tools
                                 lastmin.y = minup < 0 ? lastmin.y + minup : lastmin.y;
                                 lastmax.y = maxup > 0 ? lastmax.y + maxup : lastmax.y;
                                 lastmax.x = max.x - 1;
-                                AddRect(obj, lastmin, lastmax);
+                                AddRect(lastmin, lastmax);
                                 lastmax = max;
                                 lastmin = min;
                                 minup = maxup = 0;
@@ -991,21 +822,21 @@ namespace JTech.Tools
 
             if (lastmax.y < lastmin.y)
             {
-                AddRect(obj, min, max);
+                AddRect(min, max);
             }
             else
             {
                 lastmin.y = minup < 0 ? lastmin.y + minup : lastmin.y;
                 lastmax.y = maxup > 0 ? lastmax.y + maxup : lastmax.y;
                 lastmax.x = max.x;
-                AddRect(obj, lastmin, lastmax);
+                AddRect(lastmin, lastmax);
             }
         }
 
         
 
-        private readonly BinaryHeap<TreeNode<T>> _open = new BinaryHeap<TreeNode<T>>((a, b) => a.Value < b.Value);
-        private readonly List<TreeNode<T>> _tempList = new List<TreeNode<T>>();
+        private readonly BinaryHeap<SimplifyTreeNode> _open = new BinaryHeap<SimplifyTreeNode>((a, b) => a.Value < b.Value);
+        private readonly List<SimplifyTreeNode> _tempList = new List<SimplifyTreeNode>();
         private Stack<float2> _ans = new Stack<float2>();
         private bool[] _visited;
         private bool _visitNewNode;
@@ -1016,7 +847,7 @@ namespace JTech.Tools
         /// <param name="min"></param>
         /// <param name="max"></param>
         /// <param name="nodes"></param>
-        public void FindNodesWithoutObjects(in int2 min, in int2 max, List<TreeNode<T>> nodes)
+        public void FindNodesWithoutObjects(in int2 min, in int2 max, List<SimplifyTreeNode> nodes)
         {
             _visitNewNode = false;
             FindNodesWithoutObjects(_head, in min, in max, nodes);
@@ -1217,7 +1048,7 @@ namespace JTech.Tools
         /// <param name="pos">给定位置</param>
         /// <param name="obj">返回的最近对象</param>
         /// <returns></returns>
-        public float FindNearObject(float2 pos, out T obj)
+        public float FindNearObject(float2 pos, out SimplifyTreeNode obj)
         {
             if (CheackInited() == false)
             {
@@ -1233,7 +1064,7 @@ namespace JTech.Tools
         /// 清除某个节点及其所有子节点
         /// </summary>
         /// <param name="now">节点</param>
-        private void FakeClear(TreeNode<T> now)
+        private void FakeClear(SimplifyTreeNode now)
         {
             for (int i = 0; i < 4; i++)
             {
@@ -1256,10 +1087,10 @@ namespace JTech.Tools
         }
 
 #if QUAD_TREE_DEBUG
-        private void Output(TreeNode<T> now, int deep, float time)
+        private void Output(SimplifyTreeNode now, int deep, float time)
         {
             //Debug.LogFormat("{0},{1},{2}", deep, now.Min, now.Max);
-            if (now.Objects.Count > 0)
+            if (now.Flag)
             {
                 Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / _scale, 1, (now.Min.y - 0.5f) / _scale),
                     new Vector3((now.Min.x - 0.5f) / _scale, 1, (now.Max.y + 0.5f) / _scale), Color.red, time);
