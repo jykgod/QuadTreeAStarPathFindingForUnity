@@ -22,7 +22,7 @@ namespace JTech.Tools
         public readonly T[] Min2BoundsEntities = new T[4];
         public int2 Min;
         public int2 Max;
-        public readonly List<T> Objects = new List<T>();
+        public readonly HashSet<T> Objects = new HashSet<T>();
         //public readonly List<T> RemoveList = new List<T>();
         public readonly HashSet<T> Has = new HashSet<T>();
 
@@ -104,10 +104,9 @@ namespace JTech.Tools
         private readonly int2[] _delta = new int2[] {new int2(1, 1), new int2(-1, 1), new int2(1, -1), new int2(-1, -1)};
         private TreeNode<T> _head;
 
-        public int Count
-        {
-            get { return _pool.Count; }
-        }
+        public int Count => _pool.Count;
+
+        public float Scale => _scale;
 
         public QuadTree(float offset = 0, float resolution = 2, int initCapital = 1)
         {
@@ -167,11 +166,8 @@ namespace JTech.Tools
                     now.C[i].Min2Bounds[1] = new int2(now.C[i].Max.x, now.C[i].Min.y);
                     now.C[i].Min2Bounds[2] = new int2(now.C[i].Min.x, now.C[i].Max.y);
                     now.C[i].Min2Bounds[3] = now.C[i].Max;
-                    now.C[i].Objects.AddRange(now.Objects);
-                    for (int j = 0; j < now.Objects.Count; j++)
-                    {
-                        now.C[i].Has.Add(now.Objects[j]);
-                    }
+                    now.C[i].Objects.UnionWith(now.Objects);
+                    now.C[i].Has.UnionWith(now.Objects);
                 }
             }
 
@@ -191,30 +187,22 @@ namespace JTech.Tools
                         {
                             if (now.C[j].Has.Count != now.C[j].Objects.Count ||
                                 now.C[j].Objects.Count != now.C[i].Objects.Count) return;
-                            for (int k = 0; k < now.C[j].Objects.Count; k++)
-                            {
-                                if (now.C[i].Objects[k].Equals(now.C[i].Objects[k]) == false) return;
-                            }
+                            if (now.C[i].Objects.Except(now.C[j].Objects).Any()) return;
                         }
                     }
                 }
             }
 
             now.Objects.Clear();
+            now.Objects.UnionWith(now.Has);
             for (int i = 0; i < 4; i++)
             {
                 if (now.C[i] != null)
                 {
-                    if (now.Objects.Count == 0)
-                    {
-                        now.Objects.AddRange(now.C[i].Objects);
-                    }
-
                     _pool.Collect(now.C[i]);
                     now.C[i] = null;
                 }
             }
-            
         }
 
         private void CreateChildren(TreeNode<T> now)
@@ -242,6 +230,7 @@ namespace JTech.Tools
         /// <param name="max"></param>
         private void UpdateRect(TreeNode<T> now, T entity, in int2 min, in int2 max)
         {
+            if (now.Objects.Contains(entity)) return;
             if (min.x <= now.Min.x && min.y <= now.Min.y && max.x >= now.Max.x && max.y >= now.Max.y)
             {
                 now.Min2Bounds[0] = now.Min;
@@ -346,7 +335,7 @@ namespace JTech.Tools
             if (now.Has.Count == 0) return int.MaxValue;
             if (now.Objects.Count > 0)
             {
-                obj = now.Objects[0];
+                obj = now.Objects.First();
                 var d = 0;
                 if (pos.x < now.Min.x) d += now.Min.x - pos.x;
                 else if (pos.x > now.Max.x) d += pos.x - now.Max.x;
@@ -517,6 +506,7 @@ namespace JTech.Tools
                     if (now.C[i] != null)
                     {
                         FakeClear(now.C[i]);
+                        now.C[i] = null;
                     }
                 }
 
@@ -709,6 +699,48 @@ namespace JTech.Tools
             var iMax = (int2)math.round(max * _scale);
             RemoveAllObjectsInRect(_head, in iMin, in iMax);
         }
+        
+        private bool CheckHasObject(TreeNode<T> now, in int2 pos)
+        {
+            if (now.Objects.Count > 0)
+            {
+                return true;
+            }
+
+            if (now.Max.x == now.Min.x && now.Max.y == now.Min.y)
+            {
+                return now.Has.Count > 0;
+            }
+            
+            int2 center = now.Min + (now.Max - now.Min) / 2;
+            if (now.C[0] != null && pos.x <= center.x && pos.y <= center.y)
+            {
+                return CheckHasObject(now.C[0], in pos);
+            }
+
+            if (now.C[1] != null && pos.x > center.x && pos.y <= center.y)
+            {
+                return CheckHasObject(now.C[1], in pos);
+            }
+
+            if (now.C[2] != null && pos.x <= center.x && pos.y > center.y)
+            {
+                return CheckHasObject(now.C[2], in pos);
+            }
+
+            if (now.C[3] != null && pos.x > center.x && pos.y > center.y)
+            {
+                return CheckHasObject(now.C[3], in pos);
+            }
+
+            return false;
+        }
+
+        public bool CheckHasObject(float2 pos)
+        {
+            int2 iPos = new int2((int) (pos.x * _scale), (int) (pos.y * _scale));
+            return CheckHasObject(_head, in iPos);
+        }
 
         /// <summary>
         /// 添加坐标换算后的矩形区域
@@ -729,7 +761,7 @@ namespace JTech.Tools
         {
             if (_head == null)
             {
-                Debug.LogError("pls call Init method before call the other methods!");
+                //Debug.LogError("pls call Init method before call the other methods!");
                 return false;
             }
 
@@ -839,7 +871,7 @@ namespace JTech.Tools
         public void  AddRectObject(T obj, in float2 halfSize, in float2 pos, in float2 forward)
         {
             if (CheackInited() == false) return;
-            _rectClipHeap.Clear();
+            _rectClipHeap.FakeClear();
             var lenForward = math.length(forward);
             var cosa = forward.y / lenForward;
             var sina = forward.x / lenForward;
@@ -1016,10 +1048,12 @@ namespace JTech.Tools
         /// <param name="min"></param>
         /// <param name="max"></param>
         /// <param name="nodes"></param>
-        public void FindNodesWithoutObjects(in int2 min, in int2 max, List<TreeNode<T>> nodes)
+        public void FindNodesWithoutObjects(in float2 min, in float2 max, List<TreeNode<T>> nodes)
         {
+            var iMin = (int2)math.round(min * _scale);
+            var iMax = (int2)math.round(max * _scale);
             _visitNewNode = false;
-            FindNodesWithoutObjects(_head, in min, in max, nodes);
+            FindNodesWithoutObjects(_head, in iMin, in iMax, nodes);
         }
         /// <summary>
         /// A星寻路
@@ -1059,12 +1093,12 @@ namespace JTech.Tools
                 _visited[_tempList[i].Id] = true;
             }
 
+            _ans.Clear();
             while (_open.Count > 0)
             {
                 var now = _open.Pop();
                 if (now.Min.x <= iEnd.x && now.Min.y <= iEnd.y && now.Max.x >= iEnd.x && now.Max.y >= iEnd.y)
                 {
-                    _ans.Clear();
                     _ans.Push(end);
                     var lastPos = ((float2) (now.Min + now.Max)) / 2;
                     var lastNow = now;
@@ -1206,7 +1240,6 @@ namespace JTech.Tools
                     _visited[_tempList[i].Id] = true;
                 }
             }
-
             return _ans;
         }
 

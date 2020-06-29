@@ -98,10 +98,9 @@ namespace JTech.Tools
         private readonly int2[] _delta = new int2[] {new int2(1, 1), new int2(-1, 1), new int2(1, -1), new int2(-1, -1)};
         private SimplifyTreeNode _head;
 
-        public int Count
-        {
-            get { return _pool.Count; }
-        }
+        public int Count => _pool.Count;
+
+        public float Scale => _scale;
 
         public SimplifyQuadTree(float offset = 0, float resolution = 2, int initCapital = 1)
         {
@@ -540,6 +539,48 @@ namespace JTech.Tools
             var iMax = (int2)math.round(max * _scale);
             RemoveAllObjectsInRect(_head, in iMin, in iMax);
         }
+        
+        private bool CheckHasObject(SimplifyTreeNode now, in int2 pos)
+        {
+            if (now.Flag)
+            {
+                return true;
+            }
+
+            if (now.Max.x == now.Min.x && now.Max.y == now.Min.y)
+            {
+                return false;
+            }
+            
+            int2 center = now.Min + (now.Max - now.Min) / 2;
+            if (now.C[0] != null && pos.x <= center.x && pos.y <= center.y)
+            {
+                return CheckHasObject(now.C[0], in pos);
+            }
+
+            if (now.C[1] != null && pos.x > center.x && pos.y <= center.y)
+            {
+                return CheckHasObject(now.C[1], in pos);
+            }
+
+            if (now.C[2] != null && pos.x <= center.x && pos.y > center.y)
+            {
+                return CheckHasObject(now.C[2], in pos);
+            }
+
+            if (now.C[3] != null && pos.x > center.x && pos.y > center.y)
+            {
+                return CheckHasObject(now.C[3], in pos);
+            }
+
+            return false;
+        }
+
+        public bool CheckHasObject(float2 pos)
+        {
+            int2 iPos = new int2((int) (pos.x * _scale), (int) (pos.y * _scale));
+            return CheckHasObject(_head, in iPos);
+        }
 
         /// <summary>
         /// 添加坐标换算后的矩形区域
@@ -560,7 +601,7 @@ namespace JTech.Tools
         {
             if (_head == null)
             {
-                Debug.LogError("pls call Init method before call the other methods!");
+                //Debug.LogError("pls call Init method before call the other methods!");
                 return false;
             }
 
@@ -670,7 +711,7 @@ namespace JTech.Tools
         public void  AddRectObject(in float2 halfSize, in float2 pos, in float2 forward)
         {
             if (CheackInited() == false) return;
-            _rectClipHeap.Clear();
+            _rectClipHeap.FakeClear();
             var lenForward = math.length(forward);
             var cosa = forward.y / lenForward;
             var sina = forward.x / lenForward;
@@ -847,10 +888,12 @@ namespace JTech.Tools
         /// <param name="min"></param>
         /// <param name="max"></param>
         /// <param name="nodes"></param>
-        public void FindNodesWithoutObjects(in int2 min, in int2 max, List<SimplifyTreeNode> nodes)
+        public void FindNodesWithoutObjects(in float2 min, in float2 max, List<SimplifyTreeNode> nodes)
         {
+            var iMin = (int2)math.round(min * _scale);
+            var iMax = (int2)math.round(max * _scale);
             _visitNewNode = false;
-            FindNodesWithoutObjects(_head, in min, in max, nodes);
+            FindNodesWithoutObjects(_head, in iMin, in iMax, nodes);
         }
         /// <summary>
         /// A星寻路
@@ -889,13 +932,12 @@ namespace JTech.Tools
                 _open.Push(_tempList[i]);
                 _visited[_tempList[i].Id] = true;
             }
-
+            _ans.Clear();
             while (_open.Count > 0)
             {
                 var now = _open.Pop();
                 if (now.Min.x <= iEnd.x && now.Min.y <= iEnd.y && now.Max.x >= iEnd.x && now.Max.y >= iEnd.y)
                 {
-                    _ans.Clear();
                     _ans.Push(end);
                     var lastPos = ((float2) (now.Min + now.Max)) / 2;
                     var lastNow = now;
@@ -963,16 +1005,16 @@ namespace JTech.Tools
                     }
                     _ans.Push(start);
 #if QUAD_TREE_DEBUG
-                    var tans = new Stack<float2>(_ans.Reverse());
-                    var last = _ans.Pop();
-                    while (_ans.Count > 0)
-                    {
-                        var temp = _ans.Pop();
-                        Debug.DrawLine(new Vector3(last.x, 3, last.y), new Vector3(temp.x, 3, temp.y), Color.yellow,
-                            0.01f);
-                        last = temp;
-                    }
-                    _ans = tans;
+                    // var tans = new Stack<float2>(_ans.Reverse());
+                    // var last = _ans.Pop();
+                    // while (_ans.Count > 0)
+                    // {
+                    //     var temp = _ans.Pop();
+                    //     Debug.DrawLine(new Vector3(last.x, 3, last.y), new Vector3(temp.x, 3, temp.y), Color.yellow,
+                    //         0.01f);
+                    //     last = temp;
+                    // }
+                    // _ans = tans;
 #endif
                     break;
                 }
@@ -1038,6 +1080,7 @@ namespace JTech.Tools
                 }
             }
 
+            if (_ans.Count == 0) _ans.Push(end);
             return _ans;
         }
 
