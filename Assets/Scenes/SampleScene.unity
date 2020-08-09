@@ -330,6 +330,7 @@ MonoBehaviour:
   Resolution: 1
   Offset: 0
   MapSize: 100
+  ObjectSize: 10
   ObjectCount: 50
   Debug: 1
   Sphere: {fileID: 2827451768349211722, guid: 835bda3e1a2f04846a9f8df507611f43, type: 3}

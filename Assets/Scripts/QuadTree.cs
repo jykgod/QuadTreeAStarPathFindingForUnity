@@ -162,6 +162,7 @@ namespace JTech.Tools
         private void DownTree(TreeNode<T> now)
         {
             if (now.Objects.Count == 0) return;
+            var anyOne = now.Objects.First();
             for (int i = 0; i < 4; i++)
             {
                 if (now.C[i] != null)
@@ -170,6 +171,10 @@ namespace JTech.Tools
                     now.C[i].Vertex[1] = new int2(now.C[i].Max.x, now.C[i].Min.y);
                     now.C[i].Vertex[2] = new int2(now.C[i].Min.x, now.C[i].Max.y);
                     now.C[i].Vertex[3] = now.C[i].Max;
+                    now.C[i].VertexNearnestEntity[0] =
+                    now.C[i].VertexNearnestEntity[1] =
+                    now.C[i].VertexNearnestEntity[2] =
+                    now.C[i].VertexNearnestEntity[3] = anyOne;
                     now.C[i].Objects.UnionWith(now.Objects);
                     now.C[i].Has.UnionWith(now.Objects);
                 }
@@ -286,7 +291,7 @@ namespace JTech.Tools
         /// <summary>
         /// 清除维护的边界顶点信息
         /// </summary>
-        private void ClearVertexData(TreeNode<T> now)
+        private void ClearVertexData(in TreeNode<T> now)
         {
             for (int i = 0; i < 4; i++)
             {
@@ -385,24 +390,28 @@ namespace JTech.Tools
                 if (pos.x < now.Min.x && pos.y < now.Min.y)
                 {
                     obj = now.VertexNearnestEntity[0];
+                    if (now.Vertex[0].x == int.MaxValue) return int.MaxValue;
                     return math.dot(now.Vertex[0] - pos, _delta[0]);
                 }
 
                 if (pos.x > now.Max.x && pos.y < now.Min.y)
                 {
                     obj = now.VertexNearnestEntity[1];
+                    if (now.Vertex[1].x == int.MaxValue) return int.MaxValue;
                     return math.dot(now.Vertex[1] - pos, _delta[1]);
                 }
 
                 if (pos.x < now.Min.x && pos.y > now.Max.y)
                 {
                     obj = now.VertexNearnestEntity[2];
+                    if (now.Vertex[2].x == int.MaxValue) return int.MaxValue;
                     return math.dot(now.Vertex[2] - pos, _delta[2]);
                 }
 
                 if (pos.x > now.Max.x && pos.y > now.Max.y)
                 {
                     obj = now.VertexNearnestEntity[3];
+                    if (now.Vertex[3].x == int.MaxValue) return int.MaxValue;
                     return math.dot(now.Vertex[3] - pos, _delta[3]);
                 }
 
@@ -620,11 +629,7 @@ namespace JTech.Tools
         /// <param name="max"></param>
         private void RemoveAllObjectsInRect(TreeNode<T> now, in int2 min, in int2 max)
         {
-            for (int i = 0; i < 4; i++)
-            {
-                now.Vertex[i] = new int2(int.MaxValue, int.MaxValue);
-                now.VertexNearnestEntity[i] = default;
-            }
+            ClearVertexData(now);
             if (CheckNowInRect(in now, in min, in max))
             {
                 now.Has.Clear();
@@ -641,8 +646,6 @@ namespace JTech.Tools
             {
                 if (now.C[i] != null && CheckChildrenOverlapRect(in min, in max, in center, in i))
                     RemoveAllObjectsInRect(now.C[i], in min, in max);
-                now.Vertex[i] = new int2(int.MaxValue, int.MaxValue);
-                now.VertexNearnestEntity[i] = default;
             }
             for (int i = 0; i < 4; i++)
             {
@@ -701,7 +704,14 @@ namespace JTech.Tools
             RemoveAllObjectsInRect(_head, in iMin, in iMax);
         }
 
-        private bool CheckChildrenCoverPos(in int2 pos, in int2 center, in int index)
+        /// <summary>
+        /// 检查一个点是否在儿子内部
+        /// </summary>
+        /// <param name="pos"></param>
+        /// <param name="center"></param>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        private bool CheckPosInChildren(in int2 pos, in int2 center, in int index)
         {
             switch (index)
             {
@@ -712,6 +722,13 @@ namespace JTech.Tools
                 default: return false;
             }
         }
+
+        /// <summary>
+        /// 检查一个位置是否被障碍物占据
+        /// </summary>
+        /// <param name="now"></param>
+        /// <param name="pos"></param>
+        /// <returns></returns>
         private bool CheckHasAnyObject(TreeNode<T> now, in int2 pos)
         {
             if (now.Objects.Count > 0)
@@ -727,7 +744,7 @@ namespace JTech.Tools
             int2 center = now.Min + (now.Max - now.Min) / 2;
             for (int i = 0; i < 4; i++)
             {
-                if (now.C[i] != null && CheckChildrenCoverPos(in pos, in center, in i))
+                if (now.C[i] != null && CheckPosInChildren(in pos, in center, in i))
                     return CheckHasAnyObject(now.C[i], in pos);
             }
 
@@ -735,7 +752,7 @@ namespace JTech.Tools
         }
 
         /// <summary>
-        /// 检查位置上是否被障碍对象占据
+        /// 检查位置上是否被障碍障碍物占据
         /// </summary>
         /// <param name="pos"></param>
         /// <returns></returns>
@@ -757,7 +774,7 @@ namespace JTech.Tools
             int2 center = now.Min + (now.Max - now.Min) / 2;
             for (int i = 0; i < 4; i++)
             {
-                if (now.C[i] != null && CheckChildrenCoverPos(in pos, in center, in i))
+                if (now.C[i] != null && CheckPosInChildren(in pos, in center, in i))
                     return CheckHasObject(now.C[i], obj, in pos);
             }
 
