@@ -7,19 +7,23 @@ using UnityEngine.Profiling;
 
 namespace JTech.Tools
 {
-    
+
     public interface IData
     {
     }
     /// <summary>
     /// 四叉树节点
     /// </summary>
-    public class TreeNode<T> where  T: IData
+    public class TreeNode<T> where T : IData
     {
         public readonly int Id;
         public readonly TreeNode<T>[] C = new TreeNode<T>[4];
-        public readonly int2[] Min2Bounds = new int2[4];
-        public readonly T[] Min2BoundsEntities = new T[4];
+        /// <summary>
+        /// 距离边界最近的四个顶点
+        /// 即最左上、左下、右上、右下的四个顶点
+        /// </summary>
+        public readonly int2[] Vertex = new int2[4];
+        public readonly T[] VertexNearnestEntity = new T[4];
         public int2 Min;
         public int2 Max;
         public readonly HashSet<T> Objects = new HashSet<T>();
@@ -50,7 +54,7 @@ namespace JTech.Tools
     /// <summary>
     /// 节点对象池
     /// </summary>
-    public class NodePool<T> where  T : IData
+    public class NodePool<T> where T : IData
     {
         private readonly Queue<TreeNode<T>> _queue;
 
@@ -80,7 +84,7 @@ namespace JTech.Tools
 
             ret.Min = min;
             ret.Max = max;
-            ret.Min2Bounds[0] = ret.Min2Bounds[1] = ret.Min2Bounds[2] = ret.Min2Bounds[3] = new int2(int.MaxValue, int.MaxValue);
+            ret.Vertex[0] = ret.Vertex[1] = ret.Vertex[2] = ret.Vertex[3] = new int2(int.MaxValue, int.MaxValue);
             ret.Objects.Clear();
             ret.Has.Clear();
             ret.C[0] = ret.C[1] = ret.C[2] = ret.C[3] = null;
@@ -96,12 +100,12 @@ namespace JTech.Tools
     /// <summary>
     /// 四叉树
     /// </summary>
-    public class QuadTree<T> where  T : IData
+    public class QuadTree<T> where T : IData
     {
         private float _scale = 2;
         private float _offset = 0;
         private readonly NodePool<T> _pool;
-        private readonly int2[] _delta = new int2[] {new int2(1, 1), new int2(-1, 1), new int2(1, -1), new int2(-1, -1)};
+        private readonly int2[] _delta = new int2[] { new int2(1, 1), new int2(-1, 1), new int2(1, -1), new int2(-1, -1) };
         private TreeNode<T> _head;
 
         public int Count => _pool.Count;
@@ -121,10 +125,10 @@ namespace JTech.Tools
         public void Init(Rect rect)
         {
             _head = _pool.Get(
-                new int2((int) (rect.x * _scale - rect.width / 2f * _scale),
-                    (int) (rect.y * _scale - rect.height / 2f * _scale)),
-                new int2((int) math.ceil(rect.x * _scale + rect.width / 2f * _scale),
-                    (int) math.ceil(rect.y * _scale + rect.height / 2f * _scale)));
+                new int2((int)(rect.x * _scale - rect.width / 2f * _scale),
+                    (int)(rect.y * _scale - rect.height / 2f * _scale)),
+                new int2((int)math.ceil(rect.x * _scale + rect.width / 2f * _scale),
+                    (int)math.ceil(rect.y * _scale + rect.height / 2f * _scale)));
         }
         /// <summary>
         /// 创建子节点
@@ -162,10 +166,10 @@ namespace JTech.Tools
             {
                 if (now.C[i] != null)
                 {
-                    now.C[i].Min2Bounds[0] = now.C[i].Min;
-                    now.C[i].Min2Bounds[1] = new int2(now.C[i].Max.x, now.C[i].Min.y);
-                    now.C[i].Min2Bounds[2] = new int2(now.C[i].Min.x, now.C[i].Max.y);
-                    now.C[i].Min2Bounds[3] = now.C[i].Max;
+                    now.C[i].Vertex[0] = now.C[i].Min;
+                    now.C[i].Vertex[1] = new int2(now.C[i].Max.x, now.C[i].Min.y);
+                    now.C[i].Vertex[2] = new int2(now.C[i].Min.x, now.C[i].Max.y);
+                    now.C[i].Vertex[3] = now.C[i].Max;
                     now.C[i].Objects.UnionWith(now.Objects);
                     now.C[i].Has.UnionWith(now.Objects);
                 }
@@ -174,6 +178,10 @@ namespace JTech.Tools
             now.Objects.Clear();
         }
 
+        /// <summary>
+        /// 向上合并
+        /// </summary>
+        /// <param name="now"></param>
         private void UpTree(TreeNode<T> now)
         {
             for (int i = 0; i < 4; i++)
@@ -205,6 +213,10 @@ namespace JTech.Tools
             }
         }
 
+        /// <summary>
+        /// 创建儿子节点
+        /// </summary>
+        /// <param name="now"></param>
         private void CreateChildren(TreeNode<T> now)
         {
             for (int i = 0; i < 4; i++)
@@ -222,6 +234,68 @@ namespace JTech.Tools
         }
 
         /// <summary>
+        /// 当一个儿子节点更新过后更新距离四周最近的对象
+        /// </summary>
+        /// <param name="now"></param>
+        /// <param name="child"></param>
+        private void UpdateVertexNearnestEntityWithChild(TreeNode<T> now, TreeNode<T> child)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                if (child.Vertex[i].x != int.MaxValue &&
+                    (now.Vertex[i].x == int.MaxValue || math.dot(now.Vertex[i] - child.Vertex[i], _delta[i]) > 0))
+                {
+                    now.Vertex[i] = child.Vertex[i];
+                    now.VertexNearnestEntity[i] = child.VertexNearnestEntity[i];
+                }
+            }
+        }
+
+        /// <summary>
+        /// 检查一个儿子是否和区域有重叠关系
+        /// </summary>
+        /// <param name="min"></param>
+        /// <param name="max"></param>
+        /// <param name="center"></param>
+        /// <param name="index">儿子索引</param>
+        /// <returns></returns>
+        private bool CheckChildrenOverlapRect(in int2 min, in int2 max, in int2 center, in int index)
+        {
+            switch (index)
+            {
+                case 0: return min.x <= center.x && min.y <= center.y;
+                case 1: return max.x > center.x && min.y <= center.y;
+                case 2: return min.x <= center.x && max.y > center.y;
+                case 3: return max.x > center.x && max.y > center.y;
+                default: return false;
+            }
+        }
+
+        /// <summary>
+        /// 检查当前节点是否处于某个矩形中
+        /// </summary>
+        /// <param name="now"></param>
+        /// <param name="min"></param>
+        /// <param name="max"></param>
+        /// <returns></returns>
+        private bool CheckNowInRect(in TreeNode<T> now, in int2 min, in int2 max)
+        {
+            return min.x <= now.Min.x && min.y <= now.Min.y && max.x >= now.Max.x && max.y >= now.Max.y;
+        }
+
+        /// <summary>
+        /// 清除维护的边界顶点信息
+        /// </summary>
+        private void ClearVertexData(TreeNode<T> now)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                now.Vertex[i].x = int.MaxValue;
+                now.VertexNearnestEntity[i] = default;
+            }
+        }
+
+        /// <summary>
         /// 区域更新操作
         /// </summary>
         /// <param name="now"></param>
@@ -233,12 +307,12 @@ namespace JTech.Tools
             if (now.Objects.Contains(entity)) return;
             if (min.x <= now.Min.x && min.y <= now.Min.y && max.x >= now.Max.x && max.y >= now.Max.y)
             {
-                now.Min2Bounds[0] = now.Min;
-                now.Min2Bounds[1] = new int2(now.Max.x, now.Min.y);
-                now.Min2Bounds[2] = new int2(now.Min.x, now.Max.y);
-                now.Min2Bounds[3] = now.Max;
-                now.Min2BoundsEntities[0] = now.Min2BoundsEntities[1] =
-                    now.Min2BoundsEntities[2] = now.Min2BoundsEntities[3] = entity;
+                now.Vertex[0] = now.Min;
+                now.Vertex[1] = new int2(now.Max.x, now.Min.y);
+                now.Vertex[2] = new int2(now.Min.x, now.Max.y);
+                now.Vertex[3] = now.Max;
+                now.VertexNearnestEntity[0] = now.VertexNearnestEntity[1] =
+                    now.VertexNearnestEntity[2] = now.VertexNearnestEntity[3] = entity;
                 now.Objects.Add(entity);
                 now.Has.Add(entity);
                 return;
@@ -250,68 +324,14 @@ namespace JTech.Tools
 
             int2 center = now.Min + (now.Max - now.Min) / 2;
             bool has = false;
-            if (min.x <= center.x && min.y <= center.y)
+            for (int i = 0; i < 4; i++)
             {
-                UpdateRect(now.C[0], entity, in min, in max);
-                for (int i = 0; i < 4; i++)
+                if (now.C[i] != null && CheckChildrenOverlapRect(in min, in max, in center, in i))
                 {
-                    if (now.Min2Bounds[i].x == int.MaxValue ||
-                        math.dot(now.Min2Bounds[i] - now.C[0].Min2Bounds[i], _delta[i]) > 0)
-                    {
-                        now.Min2Bounds[i] = now.C[0].Min2Bounds[i];
-                        now.Min2BoundsEntities[i] = entity;
-                    }
+                    UpdateRect(now.C[i], entity, in min, in max);
+                    UpdateVertexNearnestEntityWithChild(now, now.C[i]);
+                    has = true;
                 }
-
-                has = true;
-            }
-
-            if (now.C[1] != null && max.x > center.x && min.y <= center.y)
-            {
-                UpdateRect(now.C[1], entity, in min, in max);
-                for (int i = 0; i < 4; i++)
-                {
-                    if (now.Min2Bounds[i].x == int.MaxValue ||
-                        math.dot(now.Min2Bounds[i] - now.C[1].Min2Bounds[i], _delta[i]) > 0)
-                    {
-                        now.Min2Bounds[i] = now.C[1].Min2Bounds[i];
-                        now.Min2BoundsEntities[i] = entity;
-                    }
-                }
-
-                has = true;
-            }
-
-            if (now.C[2] != null && min.x <= center.x && max.y > center.y)
-            {
-                UpdateRect(now.C[2], entity, in min, in max);
-                for (int i = 0; i < 4; i++)
-                {
-                    if (now.Min2Bounds[i].x == int.MaxValue ||
-                        math.dot(now.Min2Bounds[i] - now.C[2].Min2Bounds[i], _delta[i]) > 0)
-                    {
-                        now.Min2Bounds[i] = now.C[2].Min2Bounds[i];
-                        now.Min2BoundsEntities[i] = entity;
-                    }
-                }
-
-                has = true;
-            }
-
-            if (now.C[3] != null && max.x > center.x && max.y > center.y)
-            {
-                UpdateRect(now.C[3], entity, in min, in max);
-                for (int i = 0; i < 4; i++)
-                {
-                    if (now.Min2Bounds[i].x == int.MaxValue ||
-                        math.dot(now.Min2Bounds[i] - now.C[3].Min2Bounds[i], _delta[i]) > 0)
-                    {
-                        now.Min2Bounds[i] = now.C[3].Min2Bounds[i];
-                        now.Min2BoundsEntities[i] = entity;
-                    }
-                }
-
-                has = true;
             }
 
             if (has)
@@ -364,26 +384,26 @@ namespace JTech.Tools
             {
                 if (pos.x < now.Min.x && pos.y < now.Min.y)
                 {
-                    obj = now.Min2BoundsEntities[0];
-                    return math.dot(now.Min2Bounds[0] - pos, _delta[0]);
+                    obj = now.VertexNearnestEntity[0];
+                    return math.dot(now.Vertex[0] - pos, _delta[0]);
                 }
 
                 if (pos.x > now.Max.x && pos.y < now.Min.y)
                 {
-                    obj = now.Min2BoundsEntities[1];
-                    return math.dot(now.Min2Bounds[1] - pos, _delta[1]);
+                    obj = now.VertexNearnestEntity[1];
+                    return math.dot(now.Vertex[1] - pos, _delta[1]);
                 }
 
                 if (pos.x < now.Min.x && pos.y > now.Max.y)
                 {
-                    obj = now.Min2BoundsEntities[2];
-                    return math.dot(now.Min2Bounds[2] - pos, _delta[2]);
+                    obj = now.VertexNearnestEntity[2];
+                    return math.dot(now.Vertex[2] - pos, _delta[2]);
                 }
 
                 if (pos.x > now.Max.x && pos.y > now.Max.y)
                 {
-                    obj = now.Min2BoundsEntities[3];
-                    return math.dot(now.Min2Bounds[3] - pos, _delta[3]);
+                    obj = now.VertexNearnestEntity[3];
+                    return math.dot(now.Vertex[3] - pos, _delta[3]);
                 }
 
                 //下面不是最优策略
@@ -442,7 +462,6 @@ namespace JTech.Tools
 
         /// <summary>
         /// 寻找包含给定区域且没有实体存在的节点
-        /// （remove操作暂时没对该方法进行维护，remove过后该方法获取结果会出错）
         /// </summary>
         /// <param name="now"></param>
         /// <param name="min"></param>
@@ -465,24 +484,10 @@ namespace JTech.Tools
 
             DownTree(now);
             int2 center = now.Min + (now.Max - now.Min) / 2;
-            if (now.C[0] != null && min.x <= center.x && min.y <= center.y)
+            for (int i = 0; i < 4; i++)
             {
-                FindNodesWithoutObjects(now.C[0], in min, in max, nodes);
-            }
-
-            if (now.C[1] != null && max.x > center.x && min.y <= center.y)
-            {
-                FindNodesWithoutObjects(now.C[1], in min, in max, nodes);
-            }
-
-            if (now.C[2] != null && min.x <= center.x && max.y > center.y)
-            {
-                FindNodesWithoutObjects(now.C[2], in min, in max, nodes);
-            }
-
-            if (now.C[3] != null && max.x > center.x && max.y > center.y)
-            {
-                FindNodesWithoutObjects(now.C[3], in min, in max, nodes);
+                if (now.C[i] != null && CheckChildrenOverlapRect(in min, in max, in center, in i))
+                    FindNodesWithoutObjects(now.C[i], in min, in max, nodes);
             }
         }
 
@@ -498,6 +503,19 @@ namespace JTech.Tools
             if (now.Has.Contains(obj) == false) return;
             now.Has.Remove(obj);
             now.Objects.Remove(obj);
+            var objectsCount = now.Objects.Count;
+            if (objectsCount > 0)
+            {
+                var anyOne = now.Objects.First();
+                for (int i = 0; i < 4; i++)
+                {
+                    now.VertexNearnestEntity[i] = anyOne;
+                }
+            }
+            else
+            {
+                ClearVertexData(now);
+            }
             //TODO:这段仅节省内存和加快a星速度,可以加上对对象池里面的对象个数判断来决定要不要回收节点
             if (now.Has.Count == 0)
             {
@@ -512,13 +530,17 @@ namespace JTech.Tools
 
                 return;
             }
-            if (now.Objects.Count > 0) CreateChildren(now);
+            if (objectsCount > 0) CreateChildren(now);
             DownTree(now);
             for (int i = 0; i < 4; i++)
             {
                 if (now.C[i] != null)
                 {
                     RemoveObject(now.C[i], obj);
+                    if (objectsCount == 0)
+                    {
+                        UpdateVertexNearnestEntityWithChild(now, now.C[i]);
+                    }
                 }
             }
         }
@@ -534,48 +556,47 @@ namespace JTech.Tools
         private void RemoveObjectInRect(TreeNode<T> now, T obj, in int2 min, in int2 max)
         {
             if (now.Has.Contains(obj) == false) return;
-            if (min.x <= now.Min.x && min.y <= now.Min.y && max.x >= now.Max.x && max.y >= now.Max.y)
+            if (CheckNowInRect(in now, in min, in max))
             {
                 now.Has.Remove(obj);
                 now.Objects.Remove(obj);
                 if (now.Has.Count == 0)
                 {
-                    for (int i = 0; i < 4; i++)
-                    {
-                        if (now.C[i] != null)
-                        {
-                            FakeClear(now.C[i]);
-                            now.C[i] = null;
-                        }
-                    }
+                    FakeClear(now, false);
+                    ClearVertexData(now);
                     return;
                 }
             }
-            
+
+            if (now.Objects.Count > 0)
+            {
+                var anyOne = now.Objects.First();
+                for (int i = 0; i < 4; i++)
+                {
+                    now.VertexNearnestEntity[i] = anyOne;
+                }
+            }
+            else
+            {
+                ClearVertexData(now);
+            }
+
             //所有区域update操作都需要创建子节点
             if (now.Objects.Count > 0) CreateChildren(now);
 
             DownTree(now);
 
             int2 center = now.Min + (now.Max - now.Min) / 2;
-            if (now.C[0] != null && min.x <= center.x && min.y <= center.y)
+            for (int i = 0; i < 4; i++)
             {
-                RemoveObjectInRect(now.C[0], obj, in min, in max);
-            }
-
-            if (now.C[1] != null && max.x > center.x && min.y <= center.y)
-            {
-                RemoveObjectInRect(now.C[1], obj, in min, in max);
-            }
-
-            if (now.C[2] != null && min.x <= center.x && max.y > center.y)
-            {
-                RemoveObjectInRect(now.C[2], obj, in min, in max);
-            }
-
-            if (now.C[3] != null && max.x > center.x && max.y > center.y)
-            {
-                RemoveObjectInRect(now.C[3], obj, in min, in max);
+                if (now.C[i] != null)
+                {
+                    if (CheckChildrenOverlapRect(in min, in max, in center, i))
+                    {
+                        RemoveObjectInRect(now.C[i], obj, in min, in max);
+                    }
+                    UpdateVertexNearnestEntityWithChild(now, now.C[i]);
+                }
             }
 
             for (int i = 0; i < 4; i++)
@@ -587,14 +608,7 @@ namespace JTech.Tools
             //TODO:这段仅节省内存和加快a星速度,可以加上对对象池里面的对象个数判断来决定要不要回收节点
             if (now.Has.Count == 0)
             {
-                for (int i = 0; i < 4; i++)
-                {
-                    if (now.C[i] != null)
-                    {
-                        _pool.Collect(now.C[i]);
-                        now.C[i] = null;
-                    }
-                }
+                FakeClear(now, false);
             }
         }
 
@@ -606,18 +620,16 @@ namespace JTech.Tools
         /// <param name="max"></param>
         private void RemoveAllObjectsInRect(TreeNode<T> now, in int2 min, in int2 max)
         {
-            if (min.x <= now.Min.x && min.y <= now.Min.y && max.x >= now.Max.x && max.y >= now.Max.y)
+            for (int i = 0; i < 4; i++)
+            {
+                now.Vertex[i] = new int2(int.MaxValue, int.MaxValue);
+                now.VertexNearnestEntity[i] = default;
+            }
+            if (CheckNowInRect(in now, in min, in max))
             {
                 now.Has.Clear();
                 now.Objects.Clear();
-                for (int i = 0; i < 4; i++)
-                {
-                    if (now.C[i] != null)
-                    {
-                        FakeClear(now.C[i]);
-                        now.C[i] = null;
-                    }
-                }
+                FakeClear(now, false);
                 return;
             }
 
@@ -625,25 +637,21 @@ namespace JTech.Tools
 
             DownTree(now);
             int2 center = now.Min + (now.Max - now.Min) / 2;
-            if (min.x <= center.x && min.y <= center.y)
+            for (int i = 0; i < 4; i++)
             {
-                RemoveAllObjectsInRect(now.C[0], in min, in max);
+                if (now.C[i] != null && CheckChildrenOverlapRect(in min, in max, in center, in i))
+                    RemoveAllObjectsInRect(now.C[i], in min, in max);
+                now.Vertex[i] = new int2(int.MaxValue, int.MaxValue);
+                now.VertexNearnestEntity[i] = default;
+            }
+            for (int i = 0; i < 4; i++)
+            {
+                if (now.C[i] != null)
+                {
+                    UpdateVertexNearnestEntityWithChild(now, now.C[i]);
+                }
             }
 
-            if (now.C[1] != null && max.x > center.x && min.y <= center.y)
-            {
-                RemoveAllObjectsInRect(now.C[1], in min, in max);
-            }
-
-            if (now.C[2] != null && min.x <= center.x && max.y > center.y)
-            {
-                RemoveAllObjectsInRect(now.C[2], in min, in max);
-            }
-
-            if (now.C[3] != null && max.x > center.x && max.y > center.y)
-            {
-                RemoveAllObjectsInRect(now.C[3], in min, in max);
-            }
 
             now.Has.Clear();
             for (int i = 0; i < 4; i++)
@@ -653,14 +661,7 @@ namespace JTech.Tools
 
             if (now.Has.Count == 0)
             {
-                for (int i = 0; i < 4; i++)
-                {
-                    if (now.C[i] != null)
-                    {
-                        _pool.Collect(now.C[i]);
-                        now.C[i] = null;
-                    }
-                }
+                FakeClear(now, false);
             }
         }
 
@@ -699,8 +700,19 @@ namespace JTech.Tools
             var iMax = (int2)math.round(max * _scale);
             RemoveAllObjectsInRect(_head, in iMin, in iMax);
         }
-        
-        private bool CheckHasObject(TreeNode<T> now, in int2 pos)
+
+        private bool CheckChildrenCoverPos(in int2 pos, in int2 center, in int index)
+        {
+            switch (index)
+            {
+                case 0: return pos.x <= center.x && pos.y <= center.y;
+                case 1: return pos.x > center.x && pos.y <= center.y;
+                case 2: return pos.x <= center.x && pos.y > center.y;
+                case 3: return pos.x > center.x && pos.y > center.y;
+                default: return false;
+            }
+        }
+        private bool CheckHasAnyObject(TreeNode<T> now, in int2 pos)
         {
             if (now.Objects.Count > 0)
             {
@@ -711,35 +723,57 @@ namespace JTech.Tools
             {
                 return now.Has.Count > 0;
             }
-            
+
             int2 center = now.Min + (now.Max - now.Min) / 2;
-            if (now.C[0] != null && pos.x <= center.x && pos.y <= center.y)
+            for (int i = 0; i < 4; i++)
             {
-                return CheckHasObject(now.C[0], in pos);
-            }
-
-            if (now.C[1] != null && pos.x > center.x && pos.y <= center.y)
-            {
-                return CheckHasObject(now.C[1], in pos);
-            }
-
-            if (now.C[2] != null && pos.x <= center.x && pos.y > center.y)
-            {
-                return CheckHasObject(now.C[2], in pos);
-            }
-
-            if (now.C[3] != null && pos.x > center.x && pos.y > center.y)
-            {
-                return CheckHasObject(now.C[3], in pos);
+                if (now.C[i] != null && CheckChildrenCoverPos(in pos, in center, in i))
+                    return CheckHasAnyObject(now.C[i], in pos);
             }
 
             return false;
         }
 
-        public bool CheckHasObject(float2 pos)
+        /// <summary>
+        /// 检查位置上是否被障碍对象占据
+        /// </summary>
+        /// <param name="pos"></param>
+        /// <returns></returns>
+        public bool CheckHasAnyObject(float2 pos)
         {
-            int2 iPos = new int2((int) (pos.x * _scale), (int) (pos.y * _scale));
-            return CheckHasObject(_head, in iPos);
+            int2 iPos = new int2((int)(pos.x * _scale), (int)(pos.y * _scale));
+            return CheckHasAnyObject(_head, in iPos);
+        }
+
+        private bool CheckHasObject(TreeNode<T> now, T obj, in int2 pos)
+        {
+            if (now.Objects.Contains(obj))
+            {
+                return true;
+            }
+
+            if (now.Has.Contains(obj) == false) return false;
+
+            int2 center = now.Min + (now.Max - now.Min) / 2;
+            for (int i = 0; i < 4; i++)
+            {
+                if (now.C[i] != null && CheckChildrenCoverPos(in pos, in center, in i))
+                    return CheckHasObject(now.C[i], obj, in pos);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 检查位置上是否被特定障碍对象占据
+        /// </summary>
+        /// <param name="pos"></param>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public bool CheckHasObject(float2 pos, T obj)
+        {
+            int2 iPos = new int2((int)(pos.x * _scale), (int)(pos.y * _scale));
+            return CheckHasObject(_head, obj, in iPos);
         }
 
         /// <summary>
@@ -761,13 +795,13 @@ namespace JTech.Tools
         {
             if (_head == null)
             {
-                //Debug.LogError("pls call Init method before call the other methods!");
+                Debug.LogError("pls call Init method before call the other methods!");
                 return false;
             }
 
             return true;
         }
-        
+
         /// <summary>
         /// 添加圆形区域对象
         /// 这里做简单细分，容忍误差
@@ -783,60 +817,59 @@ namespace JTech.Tools
             var r = (radius + _offset) * _scale;
             if (f1 * r < 2)
             {
-                int2 min = new int2((int) (pos.x * _scale - r), (int) (pos.y * _scale - r));
-                int2 max = new int2((int) math.ceil(pos.x * _scale + r),
-                    (int) math.ceil(pos.y * _scale + r));
+                int2 min = new int2((int)(pos.x * _scale - r), (int)(pos.y * _scale - r));
+                int2 max = new int2((int)math.ceil(pos.x * _scale + r),
+                    (int)math.ceil(pos.y * _scale + r));
                 AddRect(obj, min, max);
             }
-            else if(f1 * r < 4)
+            else if (f1 * r < 4)
             {
-                int2 min = new int2((int) (pos.x * _scale - r * math.SQRT2 * 0.5f), (int) (pos.y * _scale - r * math.SQRT2 * 0.5f));
-                int2 max = new int2((int) math.ceil(pos.x * _scale + r * math.SQRT2 * 0.5f),
-                    (int) math.ceil(pos.y * _scale + r * math.SQRT2 * 0.5f));
-                AddRect(obj, min, max);
-            
-                int2 tmin = new int2((int) (pos.x * _scale - r), min.y);
-                int2 tmax = new int2(min.x, max.y);
-                AddRect(obj, tmin, tmax);
-                
+                int2 min = new int2((int)math.floor(pos.x * _scale - r * math.SQRT2 * 0.5f), (int)math.floor(pos.y * _scale - r * math.SQRT2 * 0.5f));
+                int2 max = new int2((int)math.ceil(pos.x * _scale + r * math.SQRT2 * 0.5f), (int)math.ceil(pos.y * _scale + r * math.SQRT2 * 0.5f));
+                // AddRect(obj, min, max); //center
+
+                int2 tmin = new int2((int)math.floor(pos.x * _scale - r), min.y);
+                int2 tmax = new int2((int)math.ceil(pos.x * _scale + r), max.y);
+                AddRect(obj, tmin, tmax); //left|center|right
+
                 tmin = new int2(min.x, max.y);
-                tmax = new int2(max.x, (int)math.ceil( pos.y * _scale + r));
-                AddRect(obj, tmin, tmax);
-                
-                tmin = new int2(max.x, min.y);
-                tmax = new int2((int)math.ceil( pos.x * _scale + r), max.y);
-                AddRect(obj, tmin, tmax);
-                
-                tmin = new int2(min.x, (int) (pos.y * _scale - r));
-                tmax = new int2(min.x, max.y);
-                AddRect(obj, tmin, tmax);
+                tmax = new int2(max.x, (int)math.ceil(pos.y * _scale + r));
+                AddRect(obj, tmin, tmax); //top
+
+                // tmin = new int2(max.x, min.y);
+                // tmax = new int2((int)math.ceil(pos.x * _scale + r), max.y);
+                // AddRect(obj, tmin, tmax); //right
+
+                tmin = new int2(min.x, (int)math.floor(pos.y * _scale - r));
+                tmax = new int2(max.x, min.y);
+                AddRect(obj, tmin, tmax); //bottom
             }
             else
             {
-                //TODO: 这里应该再做细分，目前先使用和上面一样的细分方案
-                int2 min = new int2((int) (pos.x * _scale - r * math.SQRT2 * 0.5f), (int) (pos.y * _scale - r * math.SQRT2 * 0.5f));
-                int2 max = new int2((int) math.ceil(pos.x * _scale + r * math.SQRT2 * 0.5f),
-                    (int) math.ceil(pos.y * _scale + r * math.SQRT2 * 0.5f));
-                AddRect(obj, min, max);
-            
-                int2 tmin = new int2((int) (pos.x * _scale - r), min.y);
-                int2 tmax = new int2(min.x, max.y);
-                AddRect(obj, tmin, tmax);
-                
-                tmin = new int2(min.x, max.y);
-                tmax = new int2(max.x, (int)math.ceil( pos.y * _scale + r));
-                AddRect(obj, tmin, tmax);
-                
-                tmin = new int2(max.x, min.y);
-                tmax = new int2((int)math.ceil( pos.x * _scale + r), max.y);
-                AddRect(obj, tmin, tmax);
-                
-                tmin = new int2(min.x, (int) (pos.y * _scale - r));
-                tmax = new int2(min.x, max.y);
-                AddRect(obj, tmin, tmax);
+                int off0 = (int)(f1 * r * 0.5);
+                int2 min = new int2((int)math.floor(pos.x * _scale - r * math.SQRT2 * 0.5f), (int)math.floor(pos.y * _scale - r * math.SQRT2 * 0.5f)) - new int2(off0 * 0.25);
+                int2 max = new int2((int)math.ceil(pos.x * _scale + r * math.SQRT2 * 0.5f), (int)math.ceil(pos.y * _scale + r * math.SQRT2 * 0.5f)) + new int2(off0 * 0.25f);
+                AddRect(obj, min, max); //center
+
+                off0 += 1;
+                int2 tmin = new int2((int)math.floor(pos.x * _scale - r), min.y + off0);
+                int2 tmax = new int2(min.x, max.y - off0);
+                AddRect(obj, tmin, tmax); //left
+
+                tmin = new int2(min.x + off0, max.y);
+                tmax = new int2(max.x - off0, (int)math.ceil(pos.y * _scale + r));
+                AddRect(obj, tmin, tmax); //top
+
+                tmin = new int2(max.x, min.y + off0);
+                tmax = new int2((int)math.ceil(pos.x * _scale + r), max.y - off0);
+                AddRect(obj, tmin, tmax); //right
+
+                tmin = new int2(min.x + off0, (int)math.floor(pos.y * _scale - r));
+                tmax = new int2(max.x - off0, min.y);
+                AddRect(obj, tmin, tmax); //bottom
             }
         }
-        
+
         /// <summary>
         /// 添加平行于坐标轴的矩形区域
         /// ps:
@@ -850,9 +883,9 @@ namespace JTech.Tools
         public void AddParallelRectObject(T obj, in float2 halfSize, in float2 pos)
         {
             if (CheackInited() == false) return;
-            int2 min = new int2((int) (pos.x * _scale - (halfSize.x + _offset) * _scale), (int) (pos.y * _scale - (halfSize.y + _offset) * _scale));
-            int2 max = new int2((int) math.ceil(pos.x * _scale + (halfSize.x + _offset) * _scale),
-                (int) math.ceil(pos.y * _scale + (halfSize.y + _offset) * _scale));
+            int2 min = new int2((int)(pos.x * _scale - (halfSize.x + _offset) * _scale), (int)(pos.y * _scale - (halfSize.y + _offset) * _scale));
+            int2 max = new int2((int)math.ceil(pos.x * _scale + (halfSize.x + _offset) * _scale),
+                (int)math.ceil(pos.y * _scale + (halfSize.y + _offset) * _scale));
             min = math.clamp(min, _head.Min, _head.Max);
             max = math.clamp(max, _head.Min, _head.Max);
             AddRect(obj, min, max);
@@ -868,7 +901,7 @@ namespace JTech.Tools
         /// <param name="halfSize"></param>
         /// <param name="pos"></param>
         /// <param name="forward">xz平面下对象本地z轴的世界朝向</param>
-        public void  AddRectObject(T obj, in float2 halfSize, in float2 pos, in float2 forward)
+        public void AddRectObject(T obj, in float2 halfSize, in float2 pos, in float2 forward)
         {
             if (CheackInited() == false) return;
             _rectClipHeap.FakeClear();
@@ -880,7 +913,7 @@ namespace JTech.Tools
             var hs = halfSize + new float2(_offset, _offset);
             for (int i = 0; i < 4; i++)
             {
-                points[i] = (int2) math.round((math.mul(hs * _delta[i], rotateMatrix) + pos) * _scale);
+                points[i] = (int2)math.round((math.mul(hs * _delta[i], rotateMatrix) + pos) * _scale);
             }
 
             points[2] += points[3];
@@ -1034,7 +1067,7 @@ namespace JTech.Tools
             }
         }
 
-        
+
 
         private readonly BinaryHeap<TreeNode<T>> _open = new BinaryHeap<TreeNode<T>>((a, b) => a.Value < b.Value);
         private readonly List<TreeNode<T>> _tempList = new List<TreeNode<T>>();
@@ -1065,8 +1098,8 @@ namespace JTech.Tools
         public Stack<float2> AStar(float2 start, float2 end)
         {
             if (CheackInited() == false) return null;
-            int2 iStart = new int2((int) (start.x * _scale), (int) (start.y * _scale));
-            int2 iEnd = new int2((int) (end.x * _scale), (int) (end.y * _scale));
+            int2 iStart = new int2((int)(start.x * _scale), (int)(start.y * _scale));
+            int2 iEnd = new int2((int)(end.x * _scale), (int)(end.y * _scale));
             if (_visited == null || _visited.Length < _pool.Count)
             {
                 _visited = new bool[_pool.Count];
@@ -1094,18 +1127,55 @@ namespace JTech.Tools
             }
 
             _ans.Clear();
+            if (_open.Count == 0) return _ans;
+            var now = _open.Peek();
+            var mins = new int2[4];
+            var maxs = new int2[4];
             while (_open.Count > 0)
             {
-                var now = _open.Pop();
+                now = _open.Pop();
                 if (now.Min.x <= iEnd.x && now.Min.y <= iEnd.y && now.Max.x >= iEnd.x && now.Max.y >= iEnd.y)
                 {
+                    break;
+                }
+                mins[0] = new int2(now.Min.x, now.Min.y - 1);
+                maxs[0] = new int2(now.Max.x + 1, now.Min.y - 1);
+
+                mins[1] = new int2(now.Max.x + 1, now.Min.y);
+                maxs[1] = new int2(now.Max.x + 1, now.Max.y + 1);
+
+                mins[2] = new int2(now.Min.x - 1, now.Max.y + 1);
+                maxs[2] = new int2(now.Max.x, now.Max.y + 1);
+
+                mins[3] = new int2(now.Min.x - 1, now.Min.y - 1);
+                maxs[3] = new int2(now.Min.x - 1, now.Max.y);
+
+                for (int k = 0; k < 4; k++)
+                {
+                    _tempList.Clear();
+                    FindNodesWithoutObjects(_head, in mins[k], in maxs[k], _tempList);
+                    for (int i = 0; i < _tempList.Count; i++)
+                    {
+                        var temp2End = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - iEnd);
+                        var temp2Last = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - (now.Min + now.Max) / 2);
+                        _tempList[i].Dist2Start = now.Dist2Start + temp2Last.x + temp2Last.y;
+                        _tempList[i].Value = temp2End.x + temp2End.y + _tempList[i].Dist2Start;
+                        _tempList[i].LastNode = now;
+                        _open.Push(_tempList[i]);
+                        _visited[_tempList[i].Id] = true;
+                    }
+                }
+            }
+
+            {
+                {
                     _ans.Push(end);
-                    var lastPos = ((float2) (now.Min + now.Max)) / 2;
+                    var lastPos = ((float2)(now.Min + now.Max)) / 2;
                     var lastNow = now;
                     now = now.LastNode;
                     while (now != null)
                     {
-                        var nowPos = ((float2) (now.Min + now.Max)) / 2;
+                        var nowPos = ((float2)(now.Min + now.Max)) / 2;
                         var p = (lastPos.x * nowPos.y - nowPos.x * lastPos.y);
                         if ((lastNow.Max.y + 1 == now.Min.y) || (lastNow.Min.y == now.Max.y + 1))
                         {
@@ -1119,8 +1189,7 @@ namespace JTech.Tools
                             {
                                 var minx = math.max(now.Min.x, lastNow.Min.x);
                                 var maxx = math.min(now.Max.x, lastNow.Max.x);
-                                var ax = ((lastPos.x - nowPos.x) * samey - p) /
-                                         (lastPos.y - nowPos.y);
+                                var ax = ((lastPos.x - nowPos.x) * samey - p) / (lastPos.y - nowPos.y);
                                 if (ax < minx)
                                 {
                                     _ans.Push(new float2(minx, samey) / _scale);
@@ -1177,67 +1246,6 @@ namespace JTech.Tools
                     }
                     _ans = tans;
 #endif
-                    break;
-                }
-
-                var min = now.Min - new int2(1, 1);
-                var max = new int2(now.Max.x + 1, now.Min.y - 1);
-                _tempList.Clear();
-                FindNodesWithoutObjects(_head, in min, in max, _tempList);
-                for (int i = 0; i < _tempList.Count; i++)
-                {
-                    var temp2End = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - iEnd);
-                    var temp2Last = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - (now.Min + now.Max) / 2);
-                    _tempList[i].Dist2Start = now.Dist2Start + temp2Last.x + temp2Last.y;
-                    _tempList[i].Value = temp2End.x + temp2End.y + _tempList[i].Dist2Start;
-                    _tempList[i].LastNode = now;
-                    _open.Push(_tempList[i]);
-                    _visited[_tempList[i].Id] = true;
-                }
-
-                min = new int2(now.Max.x + 1, now.Min.y);
-                max = new int2(now.Max.x + 1, now.Max.y + 1);
-                _tempList.Clear();
-                FindNodesWithoutObjects(_head, in min, in max, _tempList);
-                for (int i = 0; i < _tempList.Count; i++)
-                {
-                    var temp2End = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - iEnd);
-                    var temp2Last = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - (now.Min + now.Max) / 2);
-                    _tempList[i].Dist2Start = now.Dist2Start + temp2Last.x + temp2Last.y;
-                    _tempList[i].Value = temp2End.x + temp2End.y + _tempList[i].Dist2Start;
-                    _tempList[i].LastNode = now;
-                    _open.Push(_tempList[i]);
-                    _visited[_tempList[i].Id] = true;
-                }
-
-                min = new int2(now.Min.x - 1, now.Max.y + 1);
-                max = new int2(now.Max.x, now.Max.y + 1);
-                _tempList.Clear();
-                FindNodesWithoutObjects(_head, in min, in max, _tempList);
-                for (int i = 0; i < _tempList.Count; i++)
-                {
-                    var temp2End = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - iEnd);
-                    var temp2Last = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - (now.Min + now.Max) / 2);
-                    _tempList[i].Dist2Start = now.Dist2Start + temp2Last.x + temp2Last.y;
-                    _tempList[i].Value = temp2End.x + temp2End.y + _tempList[i].Dist2Start;
-                    _tempList[i].LastNode = now;
-                    _open.Push(_tempList[i]);
-                    _visited[_tempList[i].Id] = true;
-                }
-
-                min = new int2(now.Min.x - 1, now.Min.y - 1);
-                max = new int2(now.Min.x - 1, now.Max.y);
-                _tempList.Clear();
-                FindNodesWithoutObjects(_head, in min, in max, _tempList);
-                for (int i = 0; i < _tempList.Count; i++)
-                {
-                    var temp2End = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - iEnd);
-                    var temp2Last = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - (now.Min + now.Max) / 2);
-                    _tempList[i].Dist2Start = now.Dist2Start + temp2Last.x + temp2Last.y;
-                    _tempList[i].Value = temp2End.x + temp2End.y + _tempList[i].Dist2Start;
-                    _tempList[i].LastNode = now;
-                    _open.Push(_tempList[i]);
-                    _visited[_tempList[i].Id] = true;
                 }
             }
             return _ans;
@@ -1258,7 +1266,7 @@ namespace JTech.Tools
                 return 0;
             }
 
-            int2 iPos = new int2((int) (pos.x * _scale), (int) (pos.y * _scale));
+            int2 iPos = new int2((int)(pos.x * _scale), (int)(pos.y * _scale));
             return FindNearObject(_head, iPos, out obj) / _scale;
         }
 
@@ -1266,16 +1274,18 @@ namespace JTech.Tools
         /// 清除某个节点及其所有子节点
         /// </summary>
         /// <param name="now">节点</param>
-        private void FakeClear(TreeNode<T> now)
+        private void FakeClear(TreeNode<T> now, bool clearNow = true)
         {
             for (int i = 0; i < 4; i++)
             {
                 if (now.C[i] != null)
                 {
-                    FakeClear(now.C[i]);
+                    FakeClear(now.C[i], true);
+                    now.C[i] = null;
                 }
             }
-            _pool.Collect(now);
+            if (clearNow)
+                _pool.Collect(now);
         }
 
         /// <summary>

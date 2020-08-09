@@ -321,7 +321,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1209336905}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2236d7d90c5b67d4b93a944b0dea9b8d, type: 3}
   m_Name: 
@@ -329,11 +329,14 @@ MonoBehaviour:
   NodeCount: 0
   Resolution: 1
   Offset: 0
-  MapSize: 400
+  MapSize: 100
   ObjectCount: 50
   Debug: 1
   Sphere: {fileID: 2827451768349211722, guid: 835bda3e1a2f04846a9f8df507611f43, type: 3}
   Cube: {fileID: 4247723908989820648, guid: 1ce87a7d13f44824a9f8ebcd6b5ff5b8, type: 3}
+  MatObstacles: {fileID: 2100000, guid: f814810fd7bd3d34bba23b7c796ad990, type: 2}
+  MatNearnestObstacles: {fileID: 2100000, guid: 1a9ff257bddfe4149bf5be4ff8b49eea,
+    type: 2}
 --- !u!4 &1209336907
 Transform:
   m_ObjectHideFlags: 0
@@ -355,7 +358,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1209336905}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e305dc5c8a18fa749a73e8bc2a4c81e2, type: 3}
   m_Name: 
