@@ -6,7 +6,7 @@ unity四叉树+A星寻路
   
   2.A星寻路
   
-  3.查询目标点附近障碍（目前版本在执行删除操作后不支持该功能）
+  3.查询目标点附近障碍（~~目前版本在执行删除操作后不支持该功能~~）
   
   4.查询区域附近空节点
 
@@ -25,6 +25,8 @@ TODO：
   5.尝试修改整个结构以兼容burst-compiler（不一定会做...）
   
   6.懒操作优化删除方法
+   
+  7.优化不连通的情况下算法速度很慢的问题
 
 ## QuadTree
 
@@ -52,7 +54,7 @@ public void AddRectObject(T obj, in float2 halfSize, in float2 pos, in float2 fo
 public void FindNodesWithoutObjects(in int2 min, in int2 max, List<TreeNode<T>> nodes)
 //A星寻路，返回从start到end的近似最短路。开启QUAD_TREE_DEBUG后可以在scene视窗下看到寻路路径
 public Stack<float2> AStar(float2 start, float2 end)
-//查询距离给定位置附近的障碍（目前版本在使用了remove操作后再用该函数会出错）
+//查询距离给定位置附近的障碍
 public float FindNearObject(float2 pos, out T obj)
 //伪清除函数，调用该方法后若再使用该对象需要重新调用Init函数。
 public void FakeClear()
