@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using JTech.PathFinding.QuadTree;
 using JTech.Tools;
 using Unity.Mathematics;
 using UnityEngine;
@@ -142,20 +144,22 @@ public class TestSimplifyQuadTree : MonoBehaviour
         _endPos = new GameObject("EndPos");
         _player = Instantiate(Cube);
         _player.name = "Player";
-        if (Debug) _quadTree.Output(100);
+        if (Debug) _quadTree.Output(1);
     }
 
     private Stack<float2> path;
 
     void Update()
     {
-        NodeCount = _quadTree.Count;
+        NodeCount = _quadTree.count;
         if (_startPos != null && _lastStartPos != _startPos.gameObject.transform.position)
         {
             _lastStartPos = _startPos.gameObject.transform.position;
             _player.transform.position = _lastStartPos;
+            var date = DateTime.UtcNow;
             path = _quadTree.AStar(new float2(_lastStartPos.x, _lastStartPos.z),
                 new float2(_lastEndPos.x, _lastEndPos.z));
+            UnityEngine.Debug.Log((DateTime.UtcNow - date).TotalSeconds);
         }
 
         if (_endPos != null && _lastEndPos != _endPos.gameObject.transform.position)

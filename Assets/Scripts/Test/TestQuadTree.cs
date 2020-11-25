@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using JTech.PathFinding.QuadTree;
 using JTech.Tools;
 using Unity.Mathematics;
 using UnityEngine;
@@ -7,7 +8,7 @@ using Random = UnityEngine.Random;
 
 public class TestQuadTree : MonoBehaviour
 {
-    private QuadTree<TestData> _quadTree;
+    private QuadTree<TestQuadTreeData> _quadTree;
     private QuadTree<TestData2> _quadTree2;
     /// <summary>
     /// 生成后的四叉树节点个数（仅供查看不能修改）
@@ -53,9 +54,9 @@ public class TestQuadTree : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        //_quadTree = new QuadTree<TestData>(Offset, Resolution);
-        _quadTree2 = new QuadTree<TestData2>(Offset, Resolution);
-        Case8();
+        _quadTree = new QuadTree<TestQuadTreeData>(Offset, Resolution);
+        //_quadTree2 = new QuadTree<TestData2>(Offset, Resolution);
+        Case5();
     }
 
     /// <summary>
@@ -69,7 +70,7 @@ public class TestQuadTree : MonoBehaviour
         {
             float radius = Random.Range(1, ObjectSize);
             float2 pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
-            _quadTree.AddCircleObject(new TestData(), radius, in pos);
+            _quadTree.AddCircleObject(new TestQuadTreeData(), radius, in pos);
             if (Debug)
             {
                 var obj = Instantiate(Sphere);
@@ -94,7 +95,7 @@ public class TestQuadTree : MonoBehaviour
         {
             float2 size = new float2(Random.Range(1, ObjectSize), Random.Range(1, ObjectSize));
             float2 pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
-            _quadTree.AddParallelRectObject(new TestData(), in size, in pos);
+            _quadTree.AddParallelRectObject(new TestQuadTreeData(), in size, in pos);
             if (Debug)
             {
                 var obj = Instantiate(Cube);
@@ -119,7 +120,7 @@ public class TestQuadTree : MonoBehaviour
         float2 pos = new float2(0, 0);
         float2 forward = math.normalize(new float2(-1, 1));
         if (math.lengthsq(forward) < 0.1f) forward = new float2(0, 1);
-        _quadTree.AddRectObject(new TestData(), in size, in pos, forward);
+        _quadTree.AddRectObject(new TestQuadTreeData(), in size, in pos, forward);
         if (Debug)
         {
             var obj = Instantiate(Cube);
@@ -147,7 +148,7 @@ public class TestQuadTree : MonoBehaviour
             float2 pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
             float2 forward = math.normalizesafe(new float2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)));
             if (math.lengthsq(forward) < 0.1f) forward = new float2(0, 1);
-            _quadTree.AddRectObject(new TestData(), in size, in pos, forward);
+            _quadTree.AddRectObject(new TestQuadTreeData(), in size, in pos, forward);
             if (Debug)
             {
                 var obj = Instantiate(Cube);
@@ -177,7 +178,7 @@ public class TestQuadTree : MonoBehaviour
             float2 pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
             float2 forward = math.normalizesafe(new float2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)));
             if (math.lengthsq(forward) < 0.1f) forward = new float2(0, 1);
-            _quadTree.AddRectObject(new TestData(), in size, in pos, forward);
+            _quadTree.AddRectObject(new TestQuadTreeData(), in size, in pos, forward);
             if (Debug)
             {
                 var obj = Instantiate(Cube);
@@ -210,7 +211,7 @@ public class TestQuadTree : MonoBehaviour
             float2 pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
             float2 forward = math.normalizesafe(new float2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)));
             if (math.lengthsq(forward) < 0.1f) forward = new float2(0, 1);
-            _quadTree.AddRectObject(new TestData(), in size, in pos, forward);
+            _quadTree.AddRectObject(new TestQuadTreeData(), in size, in pos, forward);
         }
         _quadTree.RemoveAllObjectsInRect(new float2(0, 0), new float2(MapSize / 2f, MapSize / 2f));
 
@@ -225,10 +226,10 @@ public class TestQuadTree : MonoBehaviour
     {
         _case = 7;
         _quadTree.Init(new Rect(0, 0, MapSize, MapSize));
-        var obj = new TestData();
+        var obj = new TestQuadTreeData();
         for (int i = 0; i < 3; i++)
         {
-            obj = new TestData();
+            obj = new TestQuadTreeData();
             float2 size = new float2(Random.Range(1, ObjectSize), Random.Range(1, ObjectSize));
             float2 pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
             float2 forward = math.normalizesafe(new float2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)));
@@ -289,7 +290,7 @@ public class TestQuadTree : MonoBehaviour
     {
         if (_case != 8)
         {
-            NodeCount = _quadTree.Count;
+            NodeCount = _quadTree.count;
             if (_startPos != null && _lastStartPos != _startPos.gameObject.transform.position)
             {
                 _lastStartPos = _startPos.gameObject.transform.position;

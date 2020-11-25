@@ -22,11 +22,13 @@ TODO：
   
   4.提供多线程的异步方法
   
-  5.尝试修改整个结构以兼容burst-compiler（不一定会做...）
+  ~~5.尝试修改整个结构以兼容burst-compiler（不一定会做...）~~
   
   6.懒操作优化删除方法
    
   7.优化不连通的情况下算法速度很慢的问题
+  
+  8.添加对NativeQuadTree的Add操作的burst优化，优化NativeQuadTree的A*效率
 
 ## QuadTree
 

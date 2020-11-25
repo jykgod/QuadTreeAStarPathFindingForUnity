@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JTech.PathFinding", "JTech.PathFinding.csproj", "{B4EA2E6B-E425-48B0-74AD-704C5C32BD98}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JTech.Tools", "JTech.Tools.csproj", "{A955DE26-E709-C62A-C6E9-96D51E1A5ECE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembly-CSharp", "Assembly-CSharp.csproj", "{7F694679-4765-E036-BB0F-C6D5586BD2EF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B4EA2E6B-E425-48B0-74AD-704C5C32BD98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4EA2E6B-E425-48B0-74AD-704C5C32BD98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4EA2E6B-E425-48B0-74AD-704C5C32BD98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4EA2E6B-E425-48B0-74AD-704C5C32BD98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A955DE26-E709-C62A-C6E9-96D51E1A5ECE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A955DE26-E709-C62A-C6E9-96D51E1A5ECE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A955DE26-E709-C62A-C6E9-96D51E1A5ECE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A955DE26-E709-C62A-C6E9-96D51E1A5ECE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F694679-4765-E036-BB0F-C6D5586BD2EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F694679-4765-E036-BB0F-C6D5586BD2EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F694679-4765-E036-BB0F-C6D5586BD2EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F694679-4765-E036-BB0F-C6D5586BD2EF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

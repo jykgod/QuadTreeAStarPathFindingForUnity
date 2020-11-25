@@ -1,0 +1,10 @@
+{
+  "name": "com.jtech.tools",
+  "displayName": "JTools",
+  "version": "0.0.1",
+  "unity": "2019.4",
+  "description": "\u5de5\u5177\u7c7b\uff0c\u76ee\u524d\u5305\u542b\uff1a\n\u4e8c\u53c9\u5806",
+  "dependencies": {
+    "com.unity.collections": "0.9.0-preview.6"
+  }
+}

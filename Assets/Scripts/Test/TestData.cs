@@ -1,6 +1,7 @@
-﻿using JTech.Tools;
+﻿using JTech.PathFinding.QuadTree;
+using JTech.Tools;
 
-public class TestData : IData
+public class TestQuadTreeData : IQuadTreeData
 {
     
 }
