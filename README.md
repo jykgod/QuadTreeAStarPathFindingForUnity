@@ -14,7 +14,7 @@ unity四叉树+A星寻路
 
 TODO：
   
-  1.目前支持的障碍对象只有圆形和矩形，准备以后做扩展
+  ~~1.目前支持的障碍对象只有圆形和矩形，准备以后做扩展~~
   
   2.优化细分算法
   
@@ -47,13 +47,9 @@ public void RemoveObjectInRect(T obj, in float2 min, in float2 max)
 //删除指定区域内的所有障碍对象
 public void RemoveAllObjectsInRect(in float2 min, in float2 max)
 //添加圆形障碍对象（目前是较粗糙的细分）
-public void AddCircleObject(T obj, in float radius, in float2 pos)
-//添加平行于坐标轴的矩形障碍对象
-public void AddParallelRectObject(T obj, in float2 halfSize, in float2 pos)
-//添加任意朝向的矩形障碍对象（效率没上面的方法高，所以在平行于坐标轴的情况下尽量用上面的方法）
-public void AddRectObject(T obj, in float2 halfSize, in float2 pos, in float2 forward)
+public void AddObject(T obj, IObstacle obstacle)
 //查找和指定区域有重合部分的所有没有障碍对象存在的节点
-public void FindNodesWithoutObjects(in int2 min, in int2 max, List<TreeNode<T>> nodes)
+public void FindNodesWithoutObjects(in int2 min, in int2 max, List<IQuadTreeNode> nodes)
 //A星寻路，返回从start到end的近似最短路。开启QUAD_TREE_DEBUG后可以在scene视窗下看到寻路路径
 public Stack<float2> AStar(float2 start, float2 end)
 //查询距离给定位置附近的障碍
@@ -71,9 +67,9 @@ void Case1()
 {
     _quadTree = new QuadTree<TestData>(Offset, Resolution);
     _quadTree.Init(new Rect(0, 0, MapSize, MapSize));
-    _quadTree.AddCircleObject(new TestData(), radius, in pos);
-    _quadTree.AddParallelRectObject(new TestData(), in size, in pos);
-    _quadTree.AddRectObject(new TestData(), in size, in pos, forward);
+    _quadTree.AddObject(new TestData(), new new Circle(radius, pos));
+    _quadTree.AddObject(new TestData(), new ParallelRect(size, pos));
+    _quadTree.AddObject(new TestData(), new AnyForwardRect(size, pos, forward));
     var distance = _quadTree.FindNearObject(float2.zero, out obj);
     var path = AStar(float2 start, float2 end);
     _quadTree.Output(10);
