@@ -21,29 +21,31 @@ using Unity.Jobs;
 public class TestBinaryHeap : MonoBehaviour
 {
     private NativeBinaryHeap<int> binaryHeap;
+
     // Start is called before the first frame update
     void Start()
     {
         Debug.Log(UnsafeUtility.SizeOf(typeof(NativeQuadTreeNode)));
-        
+
         binaryHeap = new NativeBinaryHeap<int>(100000, Allocator.Persistent);
         var binaryHeap2 = new BinaryHeap<int>((a, b) => { return a < b; });
-        
+
         var date2 = DateTime.UtcNow;
-        
-        for (int i = 0; i < 100000; i++)
+
+        for (var i = 0; i < 100000; i++)
         {
             binaryHeap2.Push(i);
         }
 
-        for (int i = 10000; i >= 0; i--)
+        for (var i = 10000; i >= 0; i--)
         {
             binaryHeap2.Remove(i);
         }
+
         Debug.Log((DateTime.UtcNow - date2).TotalSeconds);
         Debug.Log(binaryHeap2.Count);
         Debug.Log(binaryHeap2.Peek());
-        
+
         var date = DateTime.UtcNow;
         new AddJob()
         {
@@ -53,7 +55,7 @@ public class TestBinaryHeap : MonoBehaviour
         {
             p = binaryHeap
         }.Run();
-        
+
         Debug.Log((DateTime.UtcNow - date).TotalSeconds);
         Debug.Log(binaryHeap.Count);
         Debug.Log(binaryHeap.Peek());
@@ -61,31 +63,34 @@ public class TestBinaryHeap : MonoBehaviour
 
     void OnDestroy()
     {
-        binaryHeap.Dispose();
+        if (binaryHeap.IsCreated)
+        {
+            binaryHeap.Dispose();
+        }
     }
-    
+
     [BurstCompile]
     public struct AddJob : IJob
     {
         public NativeBinaryHeap<int> p;
-        
+
         public void Execute()
         {
-            for (int i = 0; i < 100000; i++)
+            for (var i = 0; i < 100000; i++)
             {
                 p.Push(i);
             }
         }
     }
-    
+
     [BurstCompile]
     public struct RemoveJob : IJob
     {
         public NativeBinaryHeap<int> p;
-        
+
         public void Execute()
         {
-            for (int i = 10000; i >= 0; i--)
+            for (var i = 10000; i >= 0; i--)
             {
                 p.Remove(i);
             }

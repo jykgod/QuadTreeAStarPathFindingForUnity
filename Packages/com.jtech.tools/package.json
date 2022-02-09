@@ -5,6 +5,8 @@
   "unity": "2019.4",
   "description": "\u5de5\u5177\u7c7b\uff0c\u76ee\u524d\u5305\u542b\uff1a\n\u4e8c\u53c9\u5806",
   "dependencies": {
-    "com.unity.collections": "0.9.0-preview.6"
+    "com.unity.collections": "0.9.0-preview.6",
+    "com.unity.mathematics": "1.2.1",
+    "com.unity.burst": "1.3.9"
   }
 }

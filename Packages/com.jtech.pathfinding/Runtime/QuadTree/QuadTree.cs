@@ -13,9 +13,9 @@ namespace JTech.PathFinding.QuadTree
     /// <summary>
     /// 四叉树节点
     /// </summary>
-    public class TreeNode<T> where T : IQuadTreeData
+    public class TreeNode<T> : IQuadTreeNode where T : IQuadTreeData
     {
-        internal readonly int Id;
+        public int Id { get; set; }
         internal readonly TreeNode<T>[] C = new TreeNode<T>[4];
         /// <summary>
         /// 距离边界最近的四个顶点
@@ -23,25 +23,25 @@ namespace JTech.PathFinding.QuadTree
         /// </summary>
         internal readonly int2[] Vertex = new int2[4];
         internal readonly T[] VertexNearestEntity = new T[4];
-        internal int2 Min;
-        internal int2 Max;
+        public int2 Min { get; set; }
+        public int2 Max { get; set; }
         internal readonly HashSet<T> Objects = new HashSet<T>();
         internal readonly HashSet<T> Has = new HashSet<T>();
 
         /// <summary>
         /// AStar使用的估值
         /// </summary>
-        internal int Value;
+        public int Value { get; set; }
 
         /// <summary>
         /// AStar使用的从起始点到当前点的距离
         /// </summary>
-        internal int Dist2Start;
+        public int Dist2Start { get; set; }
 
         /// <summary>
         /// AStar使用的路径上一个区域的id
         /// </summary>
-        internal TreeNode<T> LastNode;
+        public IQuadTreeNode LastNode { get; set; }
 
         internal TreeNode(int id)
         {
@@ -56,11 +56,11 @@ namespace JTech.PathFinding.QuadTree
     {
         private readonly Queue<TreeNode<T>> _queue;
 
-        public int count { get; private set; } = 0;
+        public int Count { get; private set; } = 0;
 
         internal NodePool(int initCapital)
         {
-            count = initCapital;
+            Count = initCapital;
             _queue = new Queue<TreeNode<T>>();
             for (var i = 0; i < initCapital; i++)
             {
@@ -70,7 +70,7 @@ namespace JTech.PathFinding.QuadTree
 
         internal TreeNode<T> Get(int2 min, int2 max)
         {
-            var ret = _queue.Count > 0 ? _queue.Dequeue() : new TreeNode<T>(count++);
+            var ret = _queue.Count > 0 ? _queue.Dequeue() : new TreeNode<T>(Count++);
 
             ret.Min = min;
             ret.Max = max;
@@ -90,21 +90,22 @@ namespace JTech.PathFinding.QuadTree
     /// <summary>
     /// 四叉树
     /// </summary>
-    public class QuadTree<T> where T : IQuadTreeData
+    public class QuadTree<T> : IQuadTree where T : IQuadTreeData
     {
-        private readonly float _offset = 0;
+        private readonly float _padding;
         private readonly NodePool<T> _pool;
-        private readonly int2[] _delta = new int2[] { new int2(1, 1), new int2(-1, 1), new int2(1, -1), new int2(-1, -1) };
+        private readonly int2[] _delta = { new int2(1, 1), new int2(-1, 1), new int2(1, -1), new int2(-1, -1) };
         private TreeNode<T> _head;
+        public IQuadTreeNode Head => _head;
+        public int Count => _pool.Count;
 
-        public int count => _pool.count;
+        public float Resolution { get; }
 
-        public float scale { get; }
-
-        public QuadTree(float offset = 0, float resolution = 2, int initCapital = 1)
+        public QuadTree(float padding = 0, float resolution = 2, int initCapital = 1)
         {
-            _offset = offset;
-            scale = resolution;
+            _padding = 0;
+            _padding = padding;
+            Resolution = resolution;
             _pool = new NodePool<T>(initCapital);
         }
         /// <summary>
@@ -114,10 +115,10 @@ namespace JTech.PathFinding.QuadTree
         public void Init(Rect rect)
         {
             _head = _pool.Get(
-                new int2((int)(rect.x * scale - rect.width / 2f * scale),
-                    (int)(rect.y * scale - rect.height / 2f * scale)),
-                new int2((int)math.ceil(rect.x * scale + rect.width / 2f * scale),
-                    (int)math.ceil(rect.y * scale + rect.height / 2f * scale)));
+                new int2((int)(rect.x * Resolution - rect.width / 2f * Resolution),
+                    (int)(rect.y * Resolution - rect.height / 2f * Resolution)),
+                new int2((int)math.ceil(rect.x * Resolution + rect.width / 2f * Resolution),
+                    (int)math.ceil(rect.y * Resolution + rect.height / 2f * Resolution)));
         }
         /// <summary>
         /// 创建子节点
@@ -310,9 +311,9 @@ namespace JTech.PathFinding.QuadTree
 
             DownTree(now);
 
-            int2 center = now.Min + (now.Max - now.Min) / 2;
-            bool has = false;
-            for (int i = 0; i < 4; i++)
+            var center = now.Min + (now.Max - now.Min) / 2;
+            var has = false;
+            for (var i = 0; i < 4; i++)
             {
                 if (now.C[i] != null && CheckChildrenOverlapRect(in min, in max, in center, in i))
                 {
@@ -355,7 +356,7 @@ namespace JTech.PathFinding.QuadTree
             T tEntity;
             if (pos.x <= now.Max.x && pos.x >= now.Min.x && pos.y <= now.Max.y && pos.y >= now.Min.y)
             {
-                for (int i = 0; i < 4; i++)
+                for (var i = 0; i < 4; i++)
                 {
                     if (now.C[i] != null)
                     {
@@ -399,8 +400,8 @@ namespace JTech.PathFinding.QuadTree
                 }
 
                 //下面不是最优策略
-                int f1 = -1;
-                int f2 = -1;
+                var f1 = -1;
+                var f2 = -1;
                 if (pos.y < now.Min.y)
                 {
                     f1 = now.C[0] != null ? 0 : ((now.C[2] != null) ? 2 : -1);
@@ -451,13 +452,13 @@ namespace JTech.PathFinding.QuadTree
         /// <summary>
         /// 寻找包含给定区域且没有实体存在的节点
         /// </summary>
-        /// <param name="now"></param>
+        /// <param name="node"></param>
         /// <param name="min"></param>
         /// <param name="max"></param>
         /// <param name="nodes"></param>
-        private void FindNodesWithoutObjects(TreeNode<T> now, in int2 min, in int2 max, ICollection<TreeNode<T>> nodes)
+        public void FindNodesWithoutObjects(IQuadTreeNode node, in int2 min, in int2 max, ICollection<IQuadTreeNode> nodes)
         {
-            if (_visitNewNode && _visited[now.Id]) return;
+            var now = node as TreeNode<T>;
             if (now.Objects.Count > 0)
             {
                 return;
@@ -554,7 +555,7 @@ namespace JTech.PathFinding.QuadTree
             if (now.Objects.Count > 0)
             {
                 var anyOne = now.Objects.First();
-                for (int i = 0; i < 4; i++)
+                for (var i = 0; i < 4; i++)
                 {
                     now.VertexNearestEntity[i] = anyOne;
                 }
@@ -569,20 +570,18 @@ namespace JTech.PathFinding.QuadTree
 
             DownTree(now);
 
-            int2 center = now.Min + (now.Max - now.Min) / 2;
-            for (int i = 0; i < 4; i++)
+            var center = now.Min + (now.Max - now.Min) / 2;
+            for (var i = 0; i < 4; i++)
             {
-                if (now.C[i] != null)
+                if (now.C[i] == null) continue;
+                if (CheckChildrenOverlapRect(in min, in max, in center, i))
                 {
-                    if (CheckChildrenOverlapRect(in min, in max, in center, i))
-                    {
-                        RemoveObjectInRect(now.C[i], obj, in min, in max);
-                    }
-                    UpdateVertexNearestEntityWithChild(now, now.C[i]);
+                    RemoveObjectInRect(now.C[i], obj, in min, in max);
                 }
+                UpdateVertexNearestEntityWithChild(now, now.C[i]);
             }
 
-            for (int i = 0; i < 4; i++)
+            for (var i = 0; i < 4; i++)
             {
                 if (now.C[i] != null && now.C[i].Has.Contains(obj)) return;
             }
@@ -621,7 +620,7 @@ namespace JTech.PathFinding.QuadTree
                 if (now.C[i] != null && CheckChildrenOverlapRect(in min, in max, in center, in i))
                     RemoveAllObjectsInRect(now.C[i], in min, in max);
             }
-            for (int i = 0; i < 4; i++)
+            for (var i = 0; i < 4; i++)
             {
                 if (now.C[i] != null)
                 {
@@ -661,8 +660,8 @@ namespace JTech.PathFinding.QuadTree
         public void RemoveObjectInRect(T obj, in float2 min, in float2 max)
         {
             if (CheackInited() == false) return;
-            var iMin = (int2)math.round(min * scale);
-            var iMax = (int2)math.round(max * scale);
+            var iMin = (int2)math.round(min * Resolution);
+            var iMax = (int2)math.round(max * Resolution);
             RemoveObjectInRect(_head, obj, in iMin, in iMax);
         }
 
@@ -674,8 +673,8 @@ namespace JTech.PathFinding.QuadTree
         public void RemoveAllObjectsInRect(in float2 min, in float2 max)
         {
             if (CheackInited() == false) return;
-            var iMin = (int2)math.round(min * scale);
-            var iMax = (int2)math.round(max * scale);
+            var iMin = (int2)math.round(min * Resolution);
+            var iMax = (int2)math.round(max * Resolution);
             RemoveAllObjectsInRect(_head, in iMin, in iMax);
         }
 
@@ -733,7 +732,7 @@ namespace JTech.PathFinding.QuadTree
         /// <returns></returns>
         public bool CheckHasAnyObject(float2 pos)
         {
-            var iPos = new int2((int)(pos.x * scale), (int)(pos.y * scale));
+            var iPos = new int2((int)(pos.x * Resolution), (int)(pos.y * Resolution));
             return CheckHasAnyObject(_head, in iPos);
         }
 
@@ -764,7 +763,7 @@ namespace JTech.PathFinding.QuadTree
         /// <returns></returns>
         public bool CheckHasObject(float2 pos, T obj)
         {
-            var iPos = new int2((int)(pos.x * scale), (int)(pos.y * scale));
+            var iPos = new int2((int)(pos.x * Resolution), (int)(pos.y * Resolution));
             return CheckHasObject(_head, obj, in iPos);
         }
 
@@ -783,7 +782,7 @@ namespace JTech.PathFinding.QuadTree
         /// <summary>
         /// 检查是否已经完成初始化
         /// </summary>
-        private bool CheackInited()
+        public bool CheackInited()
         {
             if (_head != null) return true;
             Debug.LogError("pls call Init method before call the other methods!");
@@ -791,255 +790,15 @@ namespace JTech.PathFinding.QuadTree
 
         }
 
-        /// <summary>
-        /// 添加圆形区域对象
-        /// 这里做简单细分，容忍误差
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <param name="radius"></param>
-        /// <param name="pos"></param>
-        public void AddCircleObject(T obj, in float radius, in float2 pos)
+        public void AddObject(T obj, IObstacle obstacle)
         {
             if (CheackInited() == false) return;
-            const float f1 = 2 - math.SQRT2;
-            var r = (radius + _offset) * scale;
-            if (f1 * r < 2)
+            var rects = obstacle.SplitToRect(_padding, Resolution, _head.Min, _head.Max);
+            for (var i = 0; i < rects.Length; i++)
             {
-                var min = new int2((int)(pos.x * scale - r), (int)(pos.y * scale - r));
-                var max = new int2((int)math.ceil(pos.x * scale + r),
-                    (int)math.ceil(pos.y * scale + r));
-                AddRect(obj, min, max);
-            }
-            else if (f1 * r < 4)
-            {
-                var min = new int2((int)math.floor(pos.x * scale - r * math.SQRT2 * 0.5f), (int)math.floor(pos.y * scale - r * math.SQRT2 * 0.5f));
-                var max = new int2((int)math.ceil(pos.x * scale + r * math.SQRT2 * 0.5f), (int)math.ceil(pos.y * scale + r * math.SQRT2 * 0.5f));
-
-                var tMin = new int2((int)math.floor(pos.x * scale - r), min.y);
-                var tMax = new int2((int)math.ceil(pos.x * scale + r), max.y);
-                AddRect(obj, tMin, tMax); //left|center|right
-
-                tMin = new int2(min.x, max.y);
-                tMax = new int2(max.x, (int)math.ceil(pos.y * scale + r));
-                AddRect(obj, tMin, tMax); //top
-
-                tMin = new int2(min.x, (int)math.floor(pos.y * scale - r));
-                tMax = new int2(max.x, min.y);
-                AddRect(obj, tMin, tMax); //bottom
-            }
-            else
-            {
-                var off0 = (int)(f1 * r * 0.5);
-                var min = new int2((int)math.floor(pos.x * scale - r * math.SQRT2 * 0.5f), (int)math.floor(pos.y * scale - r * math.SQRT2 * 0.5f)) - new int2(off0 * 0.25);
-                var max = new int2((int)math.ceil(pos.x * scale + r * math.SQRT2 * 0.5f), (int)math.ceil(pos.y * scale + r * math.SQRT2 * 0.5f)) + new int2(off0 * 0.25f);
-                AddRect(obj, min, max); //center
-
-                off0 += 1;
-                var tMin = new int2((int)math.floor(pos.x * scale - r), min.y + off0);
-                var tMax = new int2(min.x, max.y - off0);
-                AddRect(obj, tMin, tMax); //left
-
-                tMin = new int2(min.x + off0, max.y);
-                tMax = new int2(max.x - off0, (int)math.ceil(pos.y * scale + r));
-                AddRect(obj, tMin, tMax); //top
-
-                tMin = new int2(max.x, min.y + off0);
-                tMax = new int2((int)math.ceil(pos.x * scale + r), max.y - off0);
-                AddRect(obj, tMin, tMax); //right
-
-                tMin = new int2(min.x + off0, (int)math.floor(pos.y * scale - r));
-                tMax = new int2(max.x - off0, min.y);
-                AddRect(obj, tMin, tMax); //bottom
+                AddRect(obj, rects[i].xy, rects[i].zw);
             }
         }
-
-        /// <summary>
-        /// 添加平行于坐标轴的矩形区域
-        /// ps:
-        ///     因为非平行于坐标轴的矩形需要做细分，效率会降低，
-        ///     所以能够使用这个方法的情况就不要用添加任意矩形的方法。
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <param name="halfSize"></param>
-        /// <param name="pos"></param>
-        public void AddParallelRectObject(T obj, in float2 halfSize, in float2 pos)
-        {
-            if (CheackInited() == false) return;
-            var min = new int2((int)(pos.x * scale - (halfSize.x + _offset) * scale), (int)(pos.y * scale - (halfSize.y + _offset) * scale));
-            var max = new int2((int)math.ceil(pos.x * scale + (halfSize.x + _offset) * scale),
-                (int)math.ceil(pos.y * scale + (halfSize.y + _offset) * scale));
-            min = math.clamp(min, _head.Min, _head.Max);
-            max = math.clamp(max, _head.Min, _head.Max);
-            AddRect(obj, min, max);
-        }
-
-        private readonly BinaryHeap<int2> _rectClipHeap = new BinaryHeap<int2>((a, b) => a.x < b.x || (a.x == b.x && a.y < b.y));
-        /// <summary>
-        /// 添加任意矩形区域
-        /// ps:
-        ///     如果添加的矩形平行于最标轴或近似平行于坐标轴请使用AddParallelRectEntity函数添加该对象。
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <param name="halfSize"></param>
-        /// <param name="pos"></param>
-        /// <param name="forward">xz平面下对象本地z轴的世界朝向</param>
-        public void AddRectObject(T obj, in float2 halfSize, in float2 pos, in float2 forward)
-        {
-            if (CheackInited() == false) return;
-            _rectClipHeap.FakeClear();
-            var lenForward = math.length(forward);
-            var cosA = forward.y / lenForward;
-            var sinA = forward.x / lenForward;
-            var points = new int2[4];
-            var rotateMatrix = new float2x2(cosA, -sinA, sinA, cosA);
-            var hs = halfSize + new float2(_offset, _offset);
-            for (var i = 0; i < 4; i++)
-            {
-                points[i] = (int2)math.round((math.mul(hs * _delta[i], rotateMatrix) + pos) * scale);
-            }
-
-            points[2] += points[3];
-            points[3] = points[2] - points[3];
-            points[2] -= points[3];
-
-            for (var i = 0; i < 4; i++)
-            {
-                var s = points[i];
-                var t = points[(i + 1) % 4];
-                var d = t - s;
-                if (d.x == 0 && d.y == 0)
-                {
-                    AddRect(obj, s, s);
-                    continue;
-                }
-
-                var dx = math.abs(d.x);
-                var dy = math.abs(d.y);
-                int2 sign;
-                sign.x = s.x > t.x ? -1 : 1;
-                sign.y = s.y > t.y ? -1 : 1;
-                if (dx > dy)
-                {
-                    var sy = 0f;
-                    for (var j = 0; j <= dx; j++)
-                    {
-                        _rectClipHeap.Push(s);
-                        sy += dy;
-                        if (sy >= dx)
-                        {
-                            s += sign;
-                            sy -= dx;
-                        }
-                        else
-                        {
-                            s.x += sign.x;
-                        }
-
-                        if (s.x == t.x && s.y == t.y) break;
-                    }
-                }
-                else
-                {
-                    var sx = 0f;
-                    for (var j = 0; j <= dy; j++)
-                    {
-                        _rectClipHeap.Push(s);
-                        sx += dx;
-                        if (sx >= dy)
-                        {
-                            s += sign;
-                            sx -= dy;
-                        }
-                        else
-                        {
-                            s.y += sign.y;
-                        }
-
-                        if (s.x == t.x && s.y == t.y) break;
-                    }
-                }
-            }
-
-            var nowX = int.MaxValue;
-            var min = int2.zero;
-            var max = int2.zero;
-            var lastMin = int2.zero;
-            var lastMax = int2.zero;
-            lastMax.y = -1;
-            var minUp = 0;
-            var maxUp = 0;
-            while (_rectClipHeap.Count > 0)
-            {
-                var p = _rectClipHeap.Pop();
-                if (nowX != p.x)
-                {
-                    if (nowX == int.MaxValue)
-                    {
-                        min = max = p;
-                    }
-                    else
-                    {
-                        if (lastMin.y > lastMax.y)
-                        {
-                            lastMin = min;
-                            lastMax = max;
-                            min = max = p;
-                        }
-                        else
-                        {
-                            if ((minUp == 0 || minUp + lastMin.y == min.y || lastMin.y == min.y) && (maxUp == 0 || maxUp + lastMax.y == max.y || lastMax.y == max.y))
-                            {
-                                if (minUp == 0)
-                                {
-                                    minUp = min.y - lastMin.y;
-                                }
-                                if (maxUp == 0)
-                                {
-                                    maxUp = max.y - lastMax.y;
-                                }
-                                min = max = p;
-                            }
-                            else
-                            {
-                                lastMin.y = minUp < 0 ? lastMin.y + minUp : lastMin.y;
-                                lastMax.y = maxUp > 0 ? lastMax.y + maxUp : lastMax.y;
-                                lastMax.x = max.x - 1;
-                                AddRect(obj, lastMin, lastMax);
-                                lastMax = max;
-                                lastMin = min;
-                                minUp = maxUp = 0;
-                                min = max = p;
-                            }
-                        }
-                    }
-                    nowX = p.x;
-                }
-                else
-                {
-                    max.y = p.y;
-                }
-            }
-
-            if (lastMax.y < lastMin.y)
-            {
-                AddRect(obj, min, max);
-            }
-            else
-            {
-                lastMin.y = minUp < 0 ? lastMin.y + minUp : lastMin.y;
-                lastMax.y = maxUp > 0 ? lastMax.y + maxUp : lastMax.y;
-                lastMax.x = max.x;
-                AddRect(obj, lastMin, lastMax);
-            }
-        }
-
-
-
-        private readonly BinaryHeap<TreeNode<T>> _open = new BinaryHeap<TreeNode<T>>((a, b) => a.Value < b.Value);
-        private readonly List<TreeNode<T>> _tempList = new List<TreeNode<T>>();
-        private Stack<float2> _ans = new Stack<float2>();
-        private bool[] _visited;
-        private bool _visitNewNode;
 
         /// <summary>
         /// 查找和指定区域有重合部分的所有没有障碍对象存在的节点
@@ -1047,176 +806,13 @@ namespace JTech.PathFinding.QuadTree
         /// <param name="min"></param>
         /// <param name="max"></param>
         /// <param name="nodes"></param>
-        internal void FindNodesWithoutObjects(in float2 min, in float2 max, List<TreeNode<T>> nodes)
+        internal void FindNodesWithoutObjects(in float2 min, in float2 max, List<IQuadTreeNode> nodes)
         {
-            var iMin = (int2)math.round(min * scale);
-            var iMax = (int2)math.round(max * scale);
-            _visitNewNode = false;
+            var iMin = (int2)math.round(min * Resolution);
+            var iMax = (int2)math.round(max * Resolution);
             FindNodesWithoutObjects(_head, in iMin, in iMax, nodes);
         }
-        /// <summary>
-        /// A星寻路
-        /// 求出来的并非最优解
-        /// </summary>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        /// <returns></returns>
-        public Stack<float2> AStar(float2 start, float2 end)
-        {
-            if (CheackInited() == false) return null;
-            var iStart = new int2((int)(start.x * scale), (int)(start.y * scale));
-            var iEnd = new int2((int)(end.x * scale), (int)(end.y * scale));
-            if (_visited == null || _visited.Length < _pool.count)
-            {
-                _visited = new bool[_pool.count];
-            }
-            else
-            {
-                for (int i = 0; i < _visited.Length; i++)
-                {
-                    _visited[i] = false;
-                }
-            }
-
-            _visitNewNode = true;
-            _tempList.Clear();
-            FindNodesWithoutObjects(_head, iStart, iStart, _tempList);
-            _open.FakeClear();
-            for (var i = 0; i < _tempList.Count; i++)
-            {
-                var temp = math.abs(((_tempList[i].Max + _tempList[i].Min) / 2 - iEnd));
-                _tempList[i].Value = temp.x + temp.y;
-                _tempList[i].Dist2Start = 0;
-                _tempList[i].LastNode = null;
-                _open.Push(_tempList[i]);
-                _visited[_tempList[i].Id] = true;
-            }
-
-            _ans.Clear();
-            if (_open.Count == 0) return _ans;
-            var now = _open.Peek();
-            var minS = new int2[4];
-            var maxS = new int2[4];
-            while (_open.Count > 0)
-            {
-                now = _open.Pop();
-                if (now.Min.x <= iEnd.x && now.Min.y <= iEnd.y && now.Max.x >= iEnd.x && now.Max.y >= iEnd.y)
-                {
-                    break;
-                }
-                minS[0] = new int2(now.Min.x, now.Min.y - 1);
-                maxS[0] = new int2(now.Max.x + 1, now.Min.y - 1);
-
-                minS[1] = new int2(now.Max.x + 1, now.Min.y);
-                maxS[1] = new int2(now.Max.x + 1, now.Max.y + 1);
-
-                minS[2] = new int2(now.Min.x - 1, now.Max.y + 1);
-                maxS[2] = new int2(now.Max.x, now.Max.y + 1);
-
-                minS[3] = new int2(now.Min.x - 1, now.Min.y - 1);
-                maxS[3] = new int2(now.Min.x - 1, now.Max.y);
-
-                for (var k = 0; k < 4; k++)
-                {
-                    _tempList.Clear();
-                    FindNodesWithoutObjects(_head, in minS[k], in maxS[k], _tempList);
-                    for (var i = 0; i < _tempList.Count; i++)
-                    {
-                        var temp2End = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - iEnd);
-                        var temp2Last = math.abs((_tempList[i].Max + _tempList[i].Min) / 2 - (now.Min + now.Max) / 2);
-                        _tempList[i].Dist2Start = now.Dist2Start + temp2Last.x + temp2Last.y;
-                        _tempList[i].Value = temp2End.x + temp2End.y + _tempList[i].Dist2Start;
-                        _tempList[i].LastNode = now;
-                        _open.Push(_tempList[i]);
-                        _visited[_tempList[i].Id] = true;
-                    }
-                }
-            }
-
-            {
-                {
-                    _ans.Push(end);
-                    var lastPos = ((float2)(now.Min + now.Max)) / 2;
-                    var lastNow = now;
-                    now = now.LastNode;
-                    while (now != null)
-                    {
-                        var nowPos = ((float2)(now.Min + now.Max)) / 2;
-                        var p = (lastPos.x * nowPos.y - nowPos.x * lastPos.y);
-                        if ((lastNow.Max.y + 1 == now.Min.y) || (lastNow.Min.y == now.Max.y + 1))
-                        {
-                            var samey = lastNow.Max.y + 1 == now.Min.y ? now.Min.y : now.Max.y;
-                            if ((lastNow.Max.x + 1 == now.Min.x) || (lastNow.Min.x == now.Max.x + 1))
-                            {
-                                var sameX = lastNow.Max.x + 1 == now.Min.x ? now.Min.x : now.Max.x;
-                                _ans.Push(new float2(sameX, samey) / scale);
-                            }
-                            else
-                            {
-                                var minX = math.max(now.Min.x, lastNow.Min.x);
-                                var maxX = math.min(now.Max.x, lastNow.Max.x);
-                                var ax = ((lastPos.x - nowPos.x) * samey - p) / (lastPos.y - nowPos.y);
-                                if (ax < minX)
-                                {
-                                    _ans.Push(new float2(minX, samey) / scale);
-                                }
-                                else if (ax > maxX)
-                                {
-                                    _ans.Push(new float2(maxX, samey) / scale);
-                                }
-                                else
-                                {
-                                    _ans.Push(new float2(ax, samey) / scale);
-                                }
-                            }
-                        }
-                        else if ((lastNow.Max.x + 1 == now.Min.x) || (lastNow.Min.x == now.Max.x + 1))
-                        {
-                            var sameX = lastNow.Max.x + 1 == now.Min.x ? now.Min.x : now.Max.x;
-                            var minY = math.max(now.Min.y, lastNow.Min.y);
-                            var maxY = math.min(now.Max.y, lastNow.Max.y);
-                            var ay = ((lastPos.y - nowPos.y) * sameX + p) /
-                                     (lastPos.x - nowPos.x);
-                            if (ay < minY)
-                            {
-                                _ans.Push(new float2(sameX, minY) / scale);
-                            }
-                            else if (ay > maxY)
-                            {
-                                _ans.Push(new float2(sameX, maxY) / scale);
-                            }
-                            else
-                            {
-                                _ans.Push(new float2(sameX, ay) / scale);
-                            }
-                        }
-                        else
-                        {
-                            _ans.Push(nowPos / scale);
-                        }
-
-                        lastNow = now;
-                        lastPos = nowPos;
-                        now = now.LastNode;
-                    }
-                    _ans.Push(start);
-#if QUAD_TREE_DEBUG
-                    var tans = new Stack<float2>(_ans.Reverse());
-                    var last = _ans.Pop();
-                    while (_ans.Count > 0)
-                    {
-                        var temp = _ans.Pop();
-                        Debug.DrawLine(new Vector3(last.x, 3, last.y), new Vector3(temp.x, 3, temp.y), Color.yellow,
-                            1f);
-                        last = temp;
-                    }
-                    _ans = tans;
-#endif
-                }
-            }
-            return _ans;
-        }
-
+        
         /// <summary>
         /// 查询距离给定位置最近的实体
         /// （非最优解）
@@ -1232,8 +828,8 @@ namespace JTech.PathFinding.QuadTree
                 return 0;
             }
 
-            var iPos = new int2((int)(pos.x * scale), (int)(pos.y * scale));
-            return FindNearObject(_head, iPos, out obj) / scale;
+            var iPos = new int2((int)(pos.x * Resolution), (int)(pos.y * Resolution));
+            return FindNearObject(_head, iPos, out obj) / Resolution;
         }
 
         /// <summary>
@@ -1246,7 +842,7 @@ namespace JTech.PathFinding.QuadTree
             for (var i = 0; i < 4; i++)
             {
                 if (now.C[i] == null) continue;
-                FakeClear(now.C[i], true);
+                FakeClear(now.C[i]);
                 now.C[i] = null;
             }
             if (clearNow)
@@ -1268,25 +864,25 @@ namespace JTech.PathFinding.QuadTree
         {
             if (now.Objects.Count > 0)
             {
-                Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / scale, 1, (now.Min.y - 0.5f) / scale),
-                    new Vector3((now.Min.x - 0.5f) / scale, 1, (now.Max.y + 0.5f) / scale), Color.red, time);
-                Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / scale, 1, (now.Max.y + 0.5f) / scale),
-                    new Vector3((now.Max.x + 0.5f) / scale, 1, (now.Max.y + 0.5f) / scale), Color.red, time);
-                Debug.DrawLine(new Vector3((now.Max.x + 0.5f) / scale, 1, (now.Max.y + 0.5f) / scale),
-                    new Vector3((now.Max.x + 0.5f) / scale, 1, (now.Min.y - 0.5f) / scale), Color.red, time);
-                Debug.DrawLine(new Vector3((now.Max.x + 0.5f) / scale, 1, (now.Min.y - 0.5f) / scale),
-                    new Vector3((now.Min.x - 0.5f) / scale, 1, (now.Min.y - 0.5f) / scale), Color.red, time);
+                Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / Resolution, 1, (now.Min.y - 0.5f) / Resolution),
+                    new Vector3((now.Min.x - 0.5f) / Resolution, 1, (now.Max.y + 0.5f) / Resolution), Color.red, time);
+                Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / Resolution, 1, (now.Max.y + 0.5f) / Resolution),
+                    new Vector3((now.Max.x + 0.5f) / Resolution, 1, (now.Max.y + 0.5f) / Resolution), Color.red, time);
+                Debug.DrawLine(new Vector3((now.Max.x + 0.5f) / Resolution, 1, (now.Max.y + 0.5f) / Resolution),
+                    new Vector3((now.Max.x + 0.5f) / Resolution, 1, (now.Min.y - 0.5f) / Resolution), Color.red, time);
+                Debug.DrawLine(new Vector3((now.Max.x + 0.5f) / Resolution, 1, (now.Min.y - 0.5f) / Resolution),
+                    new Vector3((now.Min.x - 0.5f) / Resolution, 1, (now.Min.y - 0.5f) / Resolution), Color.red, time);
             }
             else
             {
-                Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / scale, 0, (now.Min.y - 0.5f) / scale),
-                    new Vector3((now.Min.x - 0.5f) / scale, 0, (now.Max.y + 0.5f) / scale), Color.black, time);
-                Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / scale, 0, (now.Max.y + 0.5f) / scale),
-                    new Vector3((now.Max.x + 0.5f) / scale, 0, (now.Max.y + 0.5f) / scale), Color.black, time);
-                Debug.DrawLine(new Vector3((now.Max.x + 0.5f) / scale, 0, (now.Max.y + 0.5f) / scale),
-                    new Vector3((now.Max.x + 0.5f) / scale, 0, (now.Min.y - 0.5f) / scale), Color.black, time);
-                Debug.DrawLine(new Vector3((now.Max.x + 0.5f) / scale, 0, (now.Min.y - 0.5f) / scale),
-                    new Vector3((now.Min.x - 0.5f) / scale, 0, (now.Min.y - 0.5f) / scale), Color.black, time);
+                Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / Resolution, 0, (now.Min.y - 0.5f) / Resolution),
+                    new Vector3((now.Min.x - 0.5f) / Resolution, 0, (now.Max.y + 0.5f) / Resolution), Color.black, time);
+                Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / Resolution, 0, (now.Max.y + 0.5f) / Resolution),
+                    new Vector3((now.Max.x + 0.5f) / Resolution, 0, (now.Max.y + 0.5f) / Resolution), Color.black, time);
+                Debug.DrawLine(new Vector3((now.Max.x + 0.5f) / Resolution, 0, (now.Max.y + 0.5f) / Resolution),
+                    new Vector3((now.Max.x + 0.5f) / Resolution, 0, (now.Min.y - 0.5f) / Resolution), Color.black, time);
+                Debug.DrawLine(new Vector3((now.Max.x + 0.5f) / Resolution, 0, (now.Min.y - 0.5f) / Resolution),
+                    new Vector3((now.Min.x - 0.5f) / Resolution, 0, (now.Min.y - 0.5f) / Resolution), Color.black, time);
             }
             for (var i = 0; i < 4; i++)
             {

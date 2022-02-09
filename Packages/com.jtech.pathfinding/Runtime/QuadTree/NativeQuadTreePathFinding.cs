@@ -7,7 +7,7 @@ using Unity.Mathematics;
 
 namespace JTech.PathFinding.QuadTree
 {
-    public static class NativeQuadTreeHelper
+    public static class NativeQuadTreePathFinding
     {
         public static NativeArray<bool> Visited;
         public static NativeArray<int> LastNodeId;
@@ -15,6 +15,24 @@ namespace JTech.PathFinding.QuadTree
         public static NativeList<int> TempList = new NativeList<int>(Allocator.Persistent);
         public static NativeBinaryHeap<AStarStruct> Open = new NativeBinaryHeap<AStarStruct>(Allocator.Persistent);
         private static NativeQueue<float2> Path;
+
+        public static void ClearAll()
+        {
+            if (Visited.IsCreated)
+            {
+                Visited.Dispose();
+                LastNodeId.Dispose();
+                Dist2Start.Dispose();
+            }
+
+            if (Path.IsCreated)
+            {
+                Path.Dispose();
+            }
+
+            TempList.Dispose();
+            Open.Dispose();
+        }
         
         public static NativeQueue<float2> RunAStar(in NativeQuadTree quadTree, float2 start, float2 end, Allocator allocator)
         {
@@ -228,7 +246,7 @@ namespace JTech.PathFinding.QuadTree
                                 max = new int2(now.Max.x, now.Max.y + 1);
                                 break;
                             case 3:
-                                min = new int2(now.Min.x - 1, now.Min.y - 1);
+                                min = new int2(now.Min.x - 1, now.Min.y);
                                 max = new int2(now.Min.x - 1, now.Max.y);
                                 break;
                         }

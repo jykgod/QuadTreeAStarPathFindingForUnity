@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using JTech.Tools;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
@@ -22,11 +23,11 @@ namespace JTech.PathFinding.QuadTree
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         internal AtomicSafetyHandle m_Safety;
 #if UNITY_2020_1_OR_NEWER
-private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<NativeList<T>>();
+private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<NativeQuadTree>();
         [BurstDiscard]
         private static void CreateStaticSafetyId()
         {
-            s_staticSafetyId.Data = AtomicSafetyHandle.NewStaticSafetyId<NativeList<T>>();
+            s_staticSafetyId.Data = AtomicSafetyHandle.NewStaticSafetyId<NativeQuadTree>();
         }
 
 #endif
@@ -190,7 +191,7 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
             }
 
             now.Flag = true;
-            for (int i = 0; i < 4; i++)
+            for (var i = 0; i < 4; i++)
             {
                 if (now[i] >= 0)
                 {
@@ -205,7 +206,7 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
         /// <param name="now"></param>
         private void CreateChildren(ref NativeQuadTreeNode now)
         {
-            for (int i = 0; i < 4; i++)
+            for (var i = 0; i < 4; i++)
             {
                 if (now[i] == -1)
                 {
@@ -226,8 +227,9 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
         /// <param name="index"></param>
         private void CreateChildren(ref NativeQuadTreeNode now, int index)
         {
-            int id = 0;
-            int2 min = int2.zero, max = int2.zero;
+            var id = 0;
+            var min = int2.zero;
+            var max = int2.zero;
             switch (index)
             {
                 case 0:
@@ -284,7 +286,7 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
 
             DownTree(ref now);
 
-            int2 center = now.Min + (now.Max - now.Min) / 2;
+            var center = now.Min + (now.Max - now.Min) / 2;
             if (min.x <= center.x && min.y <= center.y)
             {
                 UpdateRect(now[0], in min, in max, data);
@@ -364,22 +366,22 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
                 break;
             }
         }
-        
+
         /// <summary>
         /// 添加平行于坐标轴的矩形区域
         /// ps:
         ///     因为非平行于坐标轴的矩形需要做细分，效率会降低，
         ///     所以能够使用这个方法的情况就不要用添加任意矩形的方法。
         /// </summary>
-        /// <param name="obj"></param>
         /// <param name="halfSize"></param>
         /// <param name="pos"></param>
-        /// <param name="forward"></param>
+        /// <param name="data"></param>
+        /// <param name="offset"></param>
         public void AddParallelRectObject(in float2 halfSize, in float2 pos, in float4 data, float offset)
         {
             if (IsCreated == false) return;
-            int2 min = new int2((int) (pos.x * _resolution - (halfSize.x + offset) * _resolution), (int) (pos.y * _resolution - (halfSize.y + offset) * _resolution));
-            int2 max = new int2((int) math.ceil(pos.x * _resolution + (halfSize.x + offset) * _resolution),
+            var min = new int2((int) (pos.x * _resolution - (halfSize.x + offset) * _resolution), (int) (pos.y * _resolution - (halfSize.y + offset) * _resolution));
+            var max = new int2((int) math.ceil(pos.x * _resolution + (halfSize.x + offset) * _resolution),
                 (int) math.ceil(pos.y * _resolution + (halfSize.y + offset) * _resolution));
             min = math.clamp(min, _min, _max);
             max = math.clamp(max, _min, _max);
@@ -409,7 +411,7 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
             var points = new int2[4];
             var rotateMatrix = new float2x2(cosa, -sina, sina, cosa);
             var hs = halfSize + new float2(offset, offset);
-            for (int i = 0; i < 4; i++)
+            for (var i = 0; i < 4; i++)
             {
                 points[i] = (int2) math.round((math.mul(hs * _delta[i], rotateMatrix) + pos) * _resolution);
             }
@@ -418,7 +420,7 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
             points[3] = points[2] - points[3];
             points[2] -= points[3];
         
-            for (int i = 0; i < 4; i++)
+            for (var i = 0; i < 4; i++)
             {
                 var s = points[i];
                 var t = points[(i + 1) % 4];
@@ -477,13 +479,13 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
             }
         
             var nowx = int.MaxValue;
-            int2 min = int2.zero;
-            int2 max = int2.zero;
-            int2 lastmin = int2.zero;
-            int2 lastmax = int2.zero;
+            var min = int2.zero;
+            var max = int2.zero;
+            var lastmin = int2.zero;
+            var lastmax = int2.zero;
             lastmax.y = -1;
-            int minup = 0;
-            int maxup = 0;
+            var minup = 0;
+            var maxup = 0;
             while (_rectClipHeap.Count > 0)
             {
                 var p = _rectClipHeap.Pop();

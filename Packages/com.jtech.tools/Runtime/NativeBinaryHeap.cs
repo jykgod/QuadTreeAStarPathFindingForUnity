@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
@@ -22,11 +23,11 @@ namespace JTech.Tools
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         internal AtomicSafetyHandle m_Safety;
 #if UNITY_2020_1_OR_NEWER
-        private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<NativeList<T>>();
+        private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.GetOrCreate<NativeBinaryHeap<T>>();
         [BurstDiscard]
         private static void CreateStaticSafetyId()
         {
-            s_staticSafetyId.Data = AtomicSafetyHandle.NewStaticSafetyId<NativeList<T>>();
+            s_staticSafetyId.Data = AtomicSafetyHandle.NewStaticSafetyId<NativeBinaryHeap<T>>();
         }
 
 #endif

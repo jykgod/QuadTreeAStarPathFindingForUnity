@@ -66,16 +66,17 @@ public class TestNativeQuadTree : MonoBehaviour
     {
         _case = 5;
         _quadTree = new NativeQuadTree(new float4(0, 0, MapSize, MapSize), Resolution, 1, Allocator.Persistent);
-        for (int i = 0; i < ObjectCount; i++)
+        for (var i = 0; i < ObjectCount; i++)
         {
-            float2 size = new float2(Random.Range(1, ObjectSize), Random.Range(1, ObjectSize));
-            float2 pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
-            float2 forward = math.normalizesafe(new float2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)));
+            var size = new float2(Random.Range(1, ObjectSize), Random.Range(1, ObjectSize));
+            var pos = new float2(Random.Range(-MapSize / 2, MapSize / 2), Random.Range(-MapSize / 2, MapSize / 2));
+            var forward = math.normalizesafe(new float2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)));
             if (math.lengthsq(forward) < 0.1f) forward = new float2(0, 1);
             _quadTree.AddRectObject(in size, in pos, forward, 1, Offset);
             if (Debug)
             {
                 var obj = Instantiate(Cube);
+                obj.hideFlags = HideFlags.HideInInspector | HideFlags.HideInHierarchy;
                 obj.name = "Cube:" + i;
                 obj.transform.position = new Vector3(pos.x, 0, pos.y);
                 obj.transform.localScale = new Vector3(size.x * 2, 1, size.y * 2);
@@ -83,7 +84,7 @@ public class TestNativeQuadTree : MonoBehaviour
                     quaternion.LookRotation(new float3(forward.x, 0, forward.y), new float3(0, 1, 0));
             }
         }
-        _quadTree.Output(10);
+        _quadTree.Output(1000);
         _startPos = new GameObject("StartPos");
         _endPos = new GameObject("EndPos");
         _player = Instantiate(Cube);
@@ -101,7 +102,7 @@ public class TestNativeQuadTree : MonoBehaviour
             _lastStartPos = _startPos.gameObject.transform.position;
             _player.transform.position = _lastStartPos;
             var date = DateTime.UtcNow;
-            path = NativeQuadTreeHelper.RunAStar(_quadTree, new float2(_lastStartPos.x, _lastStartPos.z), new float2(_lastEndPos.x, _lastEndPos.z), Allocator.Persistent);
+            path = NativeQuadTreePathFinding.RunAStar(_quadTree, new float2(_lastStartPos.x, _lastStartPos.z), new float2(_lastEndPos.x, _lastEndPos.z), Allocator.Persistent);
             UnityEngine.Debug.Log((DateTime.UtcNow - date).TotalSeconds);
         }
 
@@ -109,7 +110,7 @@ public class TestNativeQuadTree : MonoBehaviour
         {
             _lastEndPos = _endPos.gameObject.transform.position;
             _player.transform.position = _lastStartPos;
-            path = NativeQuadTreeHelper.RunAStar(_quadTree, new float2(_lastStartPos.x, _lastStartPos.z), new float2(_lastEndPos.x, _lastEndPos.z), Allocator.Persistent);
+            path = NativeQuadTreePathFinding.RunAStar(_quadTree, new float2(_lastStartPos.x, _lastStartPos.z), new float2(_lastEndPos.x, _lastEndPos.z), Allocator.Persistent);
         }
 
         if (path.IsCreated && path.Count > 0)
@@ -126,6 +127,15 @@ public class TestNativeQuadTree : MonoBehaviour
                 _player.transform.position = new Vector3(_player.transform.position.x + v.x * 0.5f, 0,
                     _player.transform.position.z + v.y * 0.5f);
             }
+        }
+    }
+
+    private void OnDestroy()
+    {
+        NativeQuadTreePathFinding.ClearAll();
+        if (_quadTree.IsCreated)
+        {
+            _quadTree.Dispose();
         }
     }
 }
