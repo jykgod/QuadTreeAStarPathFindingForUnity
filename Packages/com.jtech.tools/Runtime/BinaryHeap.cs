@@ -1,44 +1,58 @@
 ﻿using System.Collections.Generic;
 namespace JTech.Tools
 {
-    public class BinaryHeap<T>
+     public class BinaryHeap<T>
     {
-        private T[] _arr;
+        public T[] arr;
         public int Count;
         private Compare compare;
+        private OnIndexChange onIndexChange;
         public delegate bool Compare(T a, T b);
+        public delegate void OnIndexChange(T a, int index);
 
         public BinaryHeap(Compare compare)
         {
-            _arr = new T[0];
+            arr = new T[0];
             this.compare = compare;
         }
-
+        public BinaryHeap(int count, Compare compare)
+        {
+            arr = new T[count];
+            this.compare = compare;
+        }
         public BinaryHeap(List<T> list, Compare compare)
         {
-            _arr = new T[list.Count];
+            arr = new T[list.Count];
             this.compare = compare;
             for (int i = 0; i < list.Count; i++)
             {
                 Push(list[i]);
             }
         }
-
-        private void Swap(int v1, int v2)
+        public void SetOnIndexChange(OnIndexChange onIndexChange)
         {
-            T temp = _arr[v1];
-            _arr[v1] = _arr[v2];
-            _arr[v2] = temp;
+            this.onIndexChange = onIndexChange;
         }
 
-        private void UpHeap()
+        private void swap(int v1, int v2)
         {
-            int now = Count - 1;
+            T temp = arr[v1];
+            arr[v1] = arr[v2];
+            arr[v2] = temp;
+            if (onIndexChange != null)
+            {
+                onIndexChange(arr[v1], v1);
+                onIndexChange(arr[v2], v2);
+            }
+        }
+
+        private int upHeap(int now)
+        {
             while (now > 0)
             {
-                if (compare(_arr[now], _arr[(now - 1) / 2]))
+                if (compare(arr[now], arr[(now - 1) / 2]))
                 {
-                    Swap(now, (now - 1) / 2);
+                    swap(now, (now - 1) / 2);
                     now = (now - 1) / 2;
                 }
                 else
@@ -46,66 +60,62 @@ namespace JTech.Tools
                     break;
                 }
             }
+            return now;
         }
 
-        private void DownHeap(int now)
+        private int downHeap(int now)
         {
-            while (true)
+            while (now * 2 + 1 < Count)
             {
-                if (now * 2 + 1 < Count)
+                var c21 = now * 2 + 2 < Count && compare(arr[now * 2 + 2], arr[now * 2 + 1]);
+                if (c21 && compare(arr[now * 2 + 2], arr[now]))
                 {
-                    if (compare(_arr[now * 2 + 1], _arr[now]))
-                    {
-                        if (now * 2 + 2 < Count && compare(_arr[now * 2 + 2], _arr[now * 2 + 1]))
-                        {
-                            Swap(now, now * 2 + 2);
-                            now = now * 2 + 2;
-                            continue;
-                        }
-
-                        Swap(now, now * 2 + 1);
-                        DownHeap(now * 2 + 1);
-                    }
-                    if (now * 2 + 2 >= Count || !compare(_arr[now * 2 + 2], _arr[now])) return;
-                    Swap(now, now * 2 + 2);
+                    swap(now, now * 2 + 2);
                     now = now * 2 + 2;
-                    continue;
                 }
-
-                break;
+                else if (compare(arr[now * 2 + 1], arr[now]))
+                {
+                    swap(now, now * 2 + 1);
+                    now = now * 2 + 1;
+                }
+                else
+                {
+                    break;
+                }
             }
+            return now;
         }
 
         public T Peek()
         {
-            return _arr[0];
+            return arr[0];
         }
 
         public T Pop()
         {
-            T ret = _arr[0];
+            T ret = arr[0];
             Count--;
-            _arr[0] = _arr[Count];
-            DownHeap(0);
+            arr[0] = arr[Count];
+            downHeap(0);
             return ret;
         }
 
-        public void Push(T val)
+        public int Push(T val)
         {
-            if (_arr.Length > Count)
+            if (arr.Length > Count)
             {
-                _arr[Count++] = val;
-                UpHeap();
+                arr[Count++] = val;
+                return upHeap(Count - 1);
             }
             else
             {
                 T[] tempArr = new T[Count * 2 + 1];
-                for (int i = 0; i < _arr.Length; i++)
+                for (int i = 0; i < arr.Length; i++)
                 {
-                    tempArr[i] = _arr[i];
+                    tempArr[i] = arr[i];
                 }
-                _arr = tempArr;
-                Push(val);
+                arr = tempArr;
+                return Push(val);
             }
         }
 
@@ -119,24 +129,48 @@ namespace JTech.Tools
             var i = 0;
             for (; i < Count; i++)
             {
-                if (_arr[i].Equals(data))
+                if (arr[i].Equals(data))
                 {
                     break;
                 }
             }
             if (i == Count) return false;
             Count--;
-            _arr[i] = _arr[Count];
-            DownHeap(i);
+            arr[i] = arr[Count];
+            downHeap(i);
             return true;
+        }
+        public int Update(T data, bool isUp)
+        {
+            var i = 0;
+            for (; i < Count; i++)
+            {
+                if (arr[i].Equals(data))
+                {
+                    break;
+                }
+            }
+            if (i == Count) return -1;
+            if (isUp)
+                return upHeap(i);
+            else
+                return downHeap(i);
+        }
+
+        public int Update(int index, bool isUp)
+        {
+            if (isUp)
+                return upHeap(index);
+            else
+                return downHeap(index);
         }
 
         public void Clear()
         {
-            _arr = new T[0];
+            arr = new T[0];
             Count = 0;
         }
-        
+
         public void FakeClear()
         {
             Count = 0;
