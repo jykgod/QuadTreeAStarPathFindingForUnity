@@ -56,7 +56,7 @@ namespace JTech.Tools
             if (initialCapacity < 0)
                 throw new ArgumentOutOfRangeException(nameof(initialCapacity), "Capacity must be >= 0");
 
-            CollectionHelper.CheckIsUnmanaged<T>();
+            // CollectionHelper.CheckIsUnmanaged<T>();
 
             // Make sure we cannot allocate more than int.MaxValue (2,147,483,647 bytes)
             // because the underlying UnsafeUtility.Malloc is expecting a int.

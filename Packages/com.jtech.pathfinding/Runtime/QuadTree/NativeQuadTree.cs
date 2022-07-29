@@ -72,7 +72,7 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
             if (capacity < 0)
                 throw new ArgumentOutOfRangeException(nameof(capacity), "Capacity must be >= 0");
 
-            CollectionHelper.CheckIsUnmanaged<NativeQuadTreeNode>();
+            // CollectionHelper.CheckIsUnmanaged<NativeQuadTreeNode>();
 
             if (totalSize > int.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(capacity), $"Capacity * sizeof(T) cannot exceed {int.MaxValue} bytes");
@@ -588,7 +588,6 @@ private static readonly SharedStatic<int> s_staticSafetyId = SharedStatic<int>.G
         private void Output(int index, int deep, float time)
         {
             var now = this[index];
-            //Debug.LogFormat("{0},{1},{2}", deep, now.Min, now.Max);
             if (now.Flag)
             {
                 Debug.DrawLine(new Vector3((now.Min.x - 0.5f) / _resolution, 1, (now.Min.y - 0.5f) / _resolution),

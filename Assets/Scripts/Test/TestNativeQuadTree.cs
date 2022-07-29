@@ -103,7 +103,7 @@ public class TestNativeQuadTree : MonoBehaviour
             _player.transform.position = _lastStartPos;
             var date = DateTime.UtcNow;
             path = NativeQuadTreePathFinding.RunAStar(_quadTree, new float2(_lastStartPos.x, _lastStartPos.z), new float2(_lastEndPos.x, _lastEndPos.z), Allocator.Persistent);
-            UnityEngine.Debug.Log((DateTime.UtcNow - date).TotalSeconds);
+            //UnityEngine.Debug.Log((DateTime.UtcNow - date).TotalSeconds);
         }
 
         if (_endPos != null && _lastEndPos != _endPos.gameObject.transform.position)
@@ -111,6 +111,16 @@ public class TestNativeQuadTree : MonoBehaviour
             _lastEndPos = _endPos.gameObject.transform.position;
             _player.transform.position = _lastStartPos;
             path = NativeQuadTreePathFinding.RunAStar(_quadTree, new float2(_lastStartPos.x, _lastStartPos.z), new float2(_lastEndPos.x, _lastEndPos.z), Allocator.Persistent);
+            //draw path with debug line
+            var pathList = new List<float2>();
+            while (path.TryDequeue(out var p))
+            {
+                pathList.Add(p);
+            }
+            for (var i = 0; i < pathList.Count - 1; i++)
+            {
+                UnityEngine.Debug.DrawLine(new Vector3(pathList[i].x, 0, pathList[i].y), new Vector3(pathList[i + 1].x, 0, pathList[i + 1].y), Color.red, 0.1f);
+            }
         }
 
         if (path.IsCreated && path.Count > 0)

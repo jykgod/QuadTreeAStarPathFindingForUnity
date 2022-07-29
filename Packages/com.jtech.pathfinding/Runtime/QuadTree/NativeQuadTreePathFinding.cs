@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
 using JTech.Tools;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Debug = UnityEngine.Debug;
 
 namespace JTech.PathFinding.QuadTree
 {
@@ -15,6 +17,7 @@ namespace JTech.PathFinding.QuadTree
         public static NativeList<int> TempList = new NativeList<int>(Allocator.Persistent);
         public static NativeBinaryHeap<AStarStruct> Open = new NativeBinaryHeap<AStarStruct>(Allocator.Persistent);
         private static NativeQueue<float2> Path;
+        private static Stopwatch _stopwatch = new Stopwatch();
 
         public static void ClearAll()
         {
@@ -63,7 +66,8 @@ namespace JTech.PathFinding.QuadTree
                 Path.Dispose();
                 Path = new NativeQueue<float2>(allocator);
             }
-            
+
+            _stopwatch.Restart();
             new AStar()
             {
                 Start = end,
@@ -75,7 +79,9 @@ namespace JTech.PathFinding.QuadTree
                 Dist2Start = Dist2Start,
                 TempList = TempList,
                 Open = Open
-            }.Run();
+            }.Schedule().Complete();
+            _stopwatch.Stop();
+            Debug.Log($"[AStar] cost time:{_stopwatch.Elapsed.TotalMilliseconds} ms");
             if (Path.Count == 0) Path.Enqueue(end);
             return Path;
         }
