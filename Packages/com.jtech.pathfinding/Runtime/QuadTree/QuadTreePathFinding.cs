@@ -16,14 +16,45 @@ namespace JTech.PathFinding.QuadTree
         private static readonly Stack<float2> Ans = new Stack<float2>();
         private static bool[] _visited;
         private static readonly Stopwatch Stopwatch = new Stopwatch();
+        /// <summary>
+        /// 该值主要用来允许起点和终点处于障碍物中间的情况
+        /// 如果允许这样的情况，那么起点和终点的坐标就需要向外扩展一定的距离进行寻路
+        /// </summary>
+        public static int2 AllowError = new int2(1, 1);
         
         public static Stack<float2> AStar(IQuadTree quadTree, float2 start, float2 end, bool outputDeltaTime = false)
         {
             if (quadTree.CheackInited() == false) return null;
             if (outputDeltaTime) Stopwatch.Restart();
             var resolution = quadTree.Resolution;
-            var iStart = new int2((int) (start.x * resolution), (int) (start.y * resolution));
-            var iEnd = new int2((int) (end.x * resolution), (int) (end.y * resolution));
+            var iStart = new int2( Mathf.RoundToInt (start.x * resolution), Mathf.RoundToInt (start.y * resolution));
+            var iEnd = new int2(Mathf.RoundToInt (end.x * resolution), Mathf.RoundToInt (end.y * resolution));
+            Ans.Clear();
+            
+            //计算出终点不在障碍物中的最近点
+            if (AllowError.x < 0 || AllowError.y < 0)
+                throw new Exception("AllowError不能小于0");
+            if (AllowError.x != 0 || AllowError.y != 0)
+            {
+                TempList.Clear();
+                quadTree.FindNodesWithoutObjects(quadTree.Head, iEnd - AllowError, iEnd + AllowError, TempList);
+                if (TempList.Count == 0)    //如果终点的整个容差范围都处于障碍物中间，那么就直接返回
+                {
+                    return Ans;
+                }
+                var disSqr = float.MaxValue;
+                for (var i = 0; i < TempList.Count; i++)
+                {
+                    var pos = (TempList[i].Min + TempList[i].Max) / 2;
+                    var dis = math.distancesq(pos, iEnd);
+                    if (dis < disSqr)
+                    {
+                        disSqr = dis;
+                        iEnd = pos;
+                    }
+                }
+            }
+            
             var head = quadTree.Head;
             if (_visited == null || _visited.Length < quadTree.Count)
             {
@@ -38,7 +69,7 @@ namespace JTech.PathFinding.QuadTree
             }
 
             TempList.Clear();
-            quadTree.FindNodesWithoutObjects(head, iStart, iStart, TempList);
+            quadTree.FindNodesWithoutObjects(head, iStart - AllowError, iStart + AllowError, TempList);
             Open.FakeClear();
             for (var i = 0; i < TempList.Count; i++)
             {
@@ -49,17 +80,18 @@ namespace JTech.PathFinding.QuadTree
                 Open.Push(TempList[i]);
                 _visited[TempList[i].Id] = true;
             }
-
-            Ans.Clear();
+            
             if (Open.Count == 0) return Ans;
             var now = Open.Peek();
             var minS = new int2[4];
             var maxS = new int2[4];
+            var find = false;
             while (Open.Count > 0)
             {
                 now = Open.Pop();
                 if (now.Min.x <= iEnd.x && now.Min.y <= iEnd.y && now.Max.x >= iEnd.x && now.Max.y >= iEnd.y)
                 {
+                    find = true;
                     break;
                 }
 
@@ -79,9 +111,8 @@ namespace JTech.PathFinding.QuadTree
                 {
                     TempList.Clear();
                     quadTree.FindNodesWithoutObjects(head, in minS[k], in maxS[k], TempList);
-                    for (var i = 0; i < TempList.Count; i++)
+                    for (var i = 0; i < TempList.Count; i++) //TODO: 要找优解情况下需要重复查找，这里暂且对每个节点只进行单次查找
                     {
-                        //TODO: 要找优解情况下需要重复查找，这里暂且对每个节点只进行单次查找
                         if (_visited[TempList[i].Id]) continue;
                         var temp2End = math.abs((TempList[i].Max + TempList[i].Min) / 2 - iEnd);
                         var temp2Last = math.abs((TempList[i].Max + TempList[i].Min) / 2 - (now.Min + now.Max) / 2);
@@ -92,6 +123,11 @@ namespace JTech.PathFinding.QuadTree
                         _visited[TempList[i].Id] = true;
                     }
                 }
+            }
+
+            if (find == false)
+            {
+                return Ans;
             }
 
             Ans.Push(end);
